@@ -23,6 +23,45 @@
 
 ---
 
+## 📸 Visual Showcase & Evaluator Gallery
+
+| 📍 1. Route Planner (Light Theme) | 🚀 2. Route Optimization Results |
+| 📍 1. Route Planner Dashboard | 🚀 2. Route Optimization Results |
+|:---:|:---:|
+| ![Route Planner](images/01_route_planner_initial_view.png) | ![Optimization Results](images/02_route_optimization_results.png) |
+| ![Route Planner Dashboard](images/01_route_planner_dashboard.png) | ![Route Optimization Results](images/02_route_optimization_results.png) |
+
+| 🌱 3. Greenest Route Details | ⭐ 4. Optimal Route Details |
+| 🌱 3. Greenest Route Analytics | ⭐ 4. Optimal Route Analytics |
+|:---:|:---:|
+| ![Greenest Route](images/03_selected_greenest_route_details.png) | ![Optimal Route](images/04_selected_optimal_route_details.png) |
+| ![Greenest Route Analytics](images/03_greenest_route_analytics.png) | ![Optimal Route Analytics](images/04_optimal_route_analytics.png) |
+
+| 🛰️ 5. Satellite Map View | 🚚 6. Live Journey Simulation HUD |
+| 🛰️ 5. Satellite View Corridor | 🚚 6. Live Journey Simulation Telemetry |
+|:---:|:---:|
+| ![Satellite Mode](images/05_satellite_map_mode.png) | ![Live Simulation HUD](images/06_live_journey_simulation_hud.png) |
+| ![Satellite View Corridor](images/05_satellite_view_corridor.png) | ![Journey Simulation Telemetry](images/06_live_journey_simulation_telemetry.png) |
+
+| 📊 7. Fleet Dashboard Overview | 📜 8. ESG Comparative Analytics Chart |
+| 📊 7. Fleet Analytics Dashboard | 📜 8. ESG Comparative Chart |
+|:---:|:---:|
+| ![Fleet Dashboard](images/07_fleet_dashboard_overview.png) | ![ESG Analytics Chart](images/08_esg_comparative_analytics_chart.png) |
+| ![Fleet Analytics Dashboard](images/07_fleet_analytics_dashboard.png) | ![ESG Comparative Chart](images/08_esg_comparative_chart.png) |
+
+| 🚛 9. Fleet Live Monitoring Table | ⚙️ 10. Admin Configuration Portal |
+| 🚛 9. Fleet Live Monitoring Table | ⚙️ 10. Fleet Admin Portal |
+|:---:|:---:|
+| ![Monitoring Table](images/09_fleet_live_monitoring_table.png) | ![Admin Config Portal](images/10_admin_config_portal_modal.png) |
+| ![Fleet Monitoring Table](images/09_fleet_live_monitoring_table.png) | ![Fleet Admin Portal](images/10_fleet_admin_portal.png) |
+
+| 🌙 11. Midnight Dark Theme | ⚡ 12. Cyber Fleet Theme |
+|:---:|:---:|
+| ![Midnight Theme](images/11_midnight_dark_theme.png) | ![Cyber Fleet Theme](images/12_cyber_fleet_theme.png) |
+| ![Midnight Dark Theme](images/11_midnight_dark_theme.png) | ![Cyber Fleet Theme](images/12_cyber_fleet_theme.png) |
+
+---
+
 ## 🛠️ Tech Stack
 
 * **Backend:** Python 3.12, FastAPI 0.115, Uvicorn, HTTPX, Pydantic v2

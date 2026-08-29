@@ -770,6 +770,8 @@ const map = new maplibregl.Map({
   zoom: 5.5,
 });
 map.addControl(new maplibregl.NavigationControl(), "top-left");
+window.addEventListener("resize", () => map.resize());
+setTimeout(() => map.resize(), 200);
 
 // ════════════════════════════════════════════════════════════
 // STATE & NAVIGATION
@@ -799,6 +801,12 @@ function changeTheme(themeName) {
   document.body.className = "";
   if (themeName === "midnight") document.body.classList.add("theme-midnight");
   if (themeName === "cyber") document.body.classList.add("theme-cyber");
+  setTimeout(() => {
+    const el = document.getElementById('map');
+    const c = el ? el.querySelector('canvas') : null;
+    if (c && el) { c.width = el.clientWidth; c.height = el.clientHeight; }
+    map.resize();
+  }, 100);
 }
 
 function setMapMode(mode, btn) {
@@ -810,7 +818,11 @@ function setMapMode(mode, btn) {
 
   map.setStyle(style);
   map.once("styledata", () => {
+    const el = document.getElementById('map');
+    const c = el ? el.querySelector('canvas') : null;
+    if (c && el) { c.width = el.clientWidth; c.height = el.clientHeight; }
     if (currentRoutes.length) renderRoutes(currentRoutes, selectedRouteIdx);
+    map.resize();
   });
 }
 
@@ -1069,13 +1081,8 @@ function selectRoute(idx) {
 
   renderRoutes(currentRoutes, idx);
   populateSummaryDashboard(currentRoutes[idx]);
-
-  const r = currentRoutes[idx];
-  if (r && r.geometry && r.geometry.coordinates && r.geometry.coordinates.length > 0) {
-    const coords = r.geometry.coordinates;
-    const mid = coords[Math.floor(coords.length / 2)];
-    map.flyTo({ center: mid, zoom: Math.min(map.getZoom(), 7.5), duration: 700 });
-  }
+  if (currentRoutes.length) fitMapToRoutes(currentRoutes);
+  map.resize();
 }
 
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
