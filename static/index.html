@@ -406,10 +406,6 @@ body {
 
   <!-- Right Controls -->
   <div class="right-controls">
-    <div id="dbStatusBadge" style="font-size:12px; font-weight:600; padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); display:flex; align-items:center; gap:6px;">
-      <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#eab308;"></span> checking...
-    </div>
-
     <button class="btn-admin" onclick="openAdminModal()">⚙️ Admin Config</button>
 
     <select class="theme-select" id="themeSelect" onchange="changeTheme(this.value)">
@@ -418,6 +414,7 @@ body {
       <option value="cyber">⚡ Cyber Fleet</option>
     </select>
   </div>
+
 
 </header>
 
@@ -841,20 +838,11 @@ async function fetchDbStatus() {
     const res = await fetch("/api/db/status");
     const data = await res.json();
     dbMode = data.mode;
-    const badge = document.getElementById("dbStatusBadge");
-    if (badge) {
-      if (data.connected) {
-        badge.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#16a34a;"></span> 🟢 Supabase Cloud`;
-        badge.title = `Connected to Supabase`;
-      } else {
-        badge.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#eab308;"></span> 🟡 Local Cache Mode`;
-        badge.title = `Database unconfigured or offline. Using local cache fallback.`;
-      }
-    }
   } catch (e) {
-    console.warn("DB status check failed:", e);
+    console.warn("DB status check:", e);
   }
 }
+
 
 async function fetchCompanyConfig() {
   try {
