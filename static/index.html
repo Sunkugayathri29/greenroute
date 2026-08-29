@@ -499,7 +499,6 @@ body {
       <!-- Map Mode Buttons -->
       <div class="map-controls">
         <button class="map-btn active" onclick="setMapMode('street', this)">🗺 Street</button>
-        <button class="map-btn" onclick="setMapMode('traffic', this)">🚦 Traffic</button>
         <button class="map-btn" onclick="setMapMode('satellite', this)">🛰️ Satellite</button>
       </div>
 
@@ -754,14 +753,23 @@ const TRAFFIC_STYLE = {
 const SATELLITE_STYLE = {
   version: 8,
   sources: {
-    esri: {
+    esri_sat: {
       type: "raster",
       tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
       tileSize: 256,
       attribution: "© Esri, Maxar, Earthstar Geographics",
     },
+    esri_labels: {
+      type: "raster",
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      attribution: "© Esri",
+    },
   },
-  layers: [{ id: "esri", type: "raster", source: "esri" }],
+  layers: [
+    { id: "esri_sat", type: "raster", source: "esri_sat" },
+    { id: "esri_labels", type: "raster", source: "esri_labels" },
+  ],
 };
 
 const map = new maplibregl.Map({
@@ -807,9 +815,7 @@ function setMapMode(mode, btn) {
   document.querySelectorAll(".map-btn").forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
 
-  let style = STREET_STYLE;
-  if (mode === "traffic") style = TRAFFIC_STYLE;
-  if (mode === "satellite") style = SATELLITE_STYLE;
+  const style = mode === "satellite" ? SATELLITE_STYLE : STREET_STYLE;
 
   map.setStyle(style);
   map.once("styledata", () => {
