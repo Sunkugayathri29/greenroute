@@ -165,6 +165,31 @@ body {
 }
 .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+/* Autocomplete Suggestions */
+.autocomplete-container { position: relative; width: 100%; }
+.autocomplete-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--panel); border: 1.5px solid var(--border);
+  border-radius: 10px; margin-top: 4px; max-height: 220px;
+  overflow-y: auto; z-index: 100; box-shadow: var(--shadow);
+  display: none;
+}
+.autocomplete-dropdown.active { display: block; }
+.autocomplete-item {
+  padding: 10px 14px; cursor: pointer; display: flex; align-items: center;
+  gap: 10px; border-bottom: 1px solid rgba(0,0,0,0.05); font-size: 13px;
+  transition: background 0.15s;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover, .autocomplete-item.selected {
+  background: rgba(22,163,74,0.08);
+}
+.autocomplete-icon { font-size: 15px; color: var(--green); flex-shrink: 0; }
+.autocomplete-details { overflow: hidden; }
+.autocomplete-name { font-weight: 600; color: var(--text); }
+.autocomplete-sub { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+
 /* Optimize Button */
 .btn-optimize {
   width: 100%; padding: 13px;
@@ -406,6 +431,10 @@ body {
 
   <!-- Right Controls -->
   <div class="right-controls">
+    <div id="dbStatusBadge" style="font-size:12px; font-weight:600; padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); display:flex; align-items:center; gap:6px;">
+      <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#eab308;"></span> checking...
+    </div>
+
     <button class="btn-admin" onclick="openAdminModal()">⚙️ Admin Config</button>
 
     <select class="theme-select" id="themeSelect" onchange="changeTheme(this.value)">
@@ -414,7 +443,6 @@ body {
       <option value="cyber">⚡ Cyber Fleet</option>
     </select>
   </div>
-
 
 </header>
 
@@ -430,12 +458,19 @@ body {
         <p class="section-title">📍 Route Locations</p>
         <div class="input-group">
           <label>Origin</label>
-          <input type="text" id="origin" placeholder="e.g. Hyderabad" value="Hyderabad"/>
+          <div class="autocomplete-container">
+            <input type="text" id="origin" placeholder="Type city e.g. Hyderabad, Bengaluru..." value="Hyderabad" autocomplete="off"/>
+            <div class="autocomplete-dropdown" id="originDropdown"></div>
+          </div>
         </div>
         <div class="input-group">
           <label>Destination</label>
-          <input type="text" id="destination" placeholder="e.g. Bengaluru" value="Bengaluru"/>
+          <div class="autocomplete-container">
+            <input type="text" id="destination" placeholder="Type city e.g. Chennai, Mumbai..." value="Bengaluru" autocomplete="off"/>
+            <div class="autocomplete-dropdown" id="destDropdown"></div>
+          </div>
         </div>
+
 
         <p class="section-title">🚛 Truck Parameters</p>
         <div class="input-group">
@@ -796,8 +831,11 @@ function switchView(viewName) {
   } else if (viewName === 'summary') {
     document.getElementById("tabSummary").classList.add("active");
     document.getElementById("viewSummary").classList.add("active");
+    fetchMetrics();
+    fetchFleetVehicles();
   }
 }
+
 
 function changeTheme(themeName) {
   document.body.className = "";
@@ -838,11 +876,20 @@ async function fetchDbStatus() {
     const res = await fetch("/api/db/status");
     const data = await res.json();
     dbMode = data.mode;
+    const badge = document.getElementById("dbStatusBadge");
+    if (badge) {
+      if (data.connected) {
+        badge.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#16a34a;"></span> 🟢 Supabase Cloud`;
+        badge.title = `Connected to Supabase`;
+      } else {
+        badge.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#eab308;"></span> 🟡 Local Cache Mode`;
+        badge.title = `Database unconfigured or offline. Using local cache fallback.`;
+      }
+    }
   } catch (e) {
-    console.warn("DB status check:", e);
+    console.warn("DB status check failed:", e);
   }
 }
-
 
 async function fetchCompanyConfig() {
   try {
@@ -1018,13 +1065,123 @@ async function recordCompletedTrip(route) {
   }
 }
 
+// ════════════════════════════════════════════════════════════
+// AUTOCOMPLETE SUGGESTIONS LOGIC
+// ════════════════════════════════════════════════════════════
+function setupAutocomplete(inputId, dropdownId) {
+  const input = document.getElementById(inputId);
+  const dropdown = document.getElementById(dropdownId);
+  if (!input || !dropdown) return;
+
+  let debounceTimer = null;
+  let activeIndex = -1;
+  let currentSuggestions = [];
+
+  input.addEventListener("input", () => {
+    const val = input.value.trim();
+    clearTimeout(debounceTimer);
+    if (val.length < 2) {
+      dropdown.classList.remove("active");
+      dropdown.innerHTML = "";
+      return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(val)}`);
+        const data = await res.json();
+        currentSuggestions = data.suggestions || [];
+        renderDropdown(currentSuggestions);
+      } catch (err) {
+        console.warn("Autocomplete error:", err);
+      }
+    }, 200);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    const items = dropdown.querySelectorAll(".autocomplete-item");
+    if (!items.length) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % items.length;
+      updateActiveItem(items);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + items.length) % items.length;
+      updateActiveItem(items);
+    } else if (e.key === "Enter" && activeIndex >= 0) {
+      e.preventDefault();
+      selectSuggestion(currentSuggestions[activeIndex]);
+    } else if (e.key === "Escape") {
+      dropdown.classList.remove("active");
+    }
+  });
+
+  function updateActiveItem(items) {
+    items.forEach((it, i) => {
+      it.classList.toggle("selected", i === activeIndex);
+      if (i === activeIndex) it.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  function renderDropdown(suggestions) {
+    if (!suggestions.length) {
+      dropdown.classList.remove("active");
+      dropdown.innerHTML = "";
+      return;
+    }
+
+    dropdown.innerHTML = suggestions.map((s, idx) => `
+      <div class="autocomplete-item ${idx === activeIndex ? 'selected' : ''}" data-idx="${idx}">
+        <div class="autocomplete-icon">📍</div>
+        <div class="autocomplete-details">
+          <div class="autocomplete-name">${escapeHtml(s.name || s.display_name)}</div>
+          <div class="autocomplete-sub">${escapeHtml(s.display_name)}</div>
+        </div>
+      </div>
+    `).join("");
+
+    dropdown.querySelectorAll(".autocomplete-item").forEach(el => {
+      el.addEventListener("click", () => {
+        const idx = parseInt(el.getAttribute("data-idx"), 10);
+        selectSuggestion(suggestions[idx]);
+      });
+    });
+
+    dropdown.classList.add("active");
+  }
+
+  function selectSuggestion(item) {
+    if (!item) return;
+    input.value = item.name || item.display_name;
+    dropdown.classList.remove("active");
+    dropdown.innerHTML = "";
+    activeIndex = -1;
+  }
+
+  document.addEventListener("click", (e) => {
+    if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.classList.remove("active");
+    }
+  });
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 // Auto-initialize on startup
 window.addEventListener("DOMContentLoaded", () => {
   fetchDbStatus();
   fetchCompanyConfig();
   fetchFleetVehicles();
   fetchMetrics();
+  setupAutocomplete("origin", "originDropdown");
+  setupAutocomplete("destination", "destDropdown");
 });
+
 
 
 // ════════════════════════════════════════════════════════════
@@ -1321,20 +1478,7 @@ function populateSummaryDashboard(route, fullData) {
   const greenest = currentRoutes.find(r => r.type === "greenest") || route;
   const optimal  = currentRoutes.find(r => r.type === "optimal")  || route;
 
-  const compareTarget = (route.type === "greenest" && optimal !== greenest) ? optimal : route;
-  const fuelSaved = (compareTarget.fuel - route.fuel).toFixed(1);
-  const co2Saved  = (compareTarget.co2_kg - route.co2_kg).toFixed(1);
-  const costSaved = (compareTarget.cost_inr - route.cost_inr);
-
-  document.getElementById("sumFuelVal").textContent = `${route.fuel} ${route.fuel_unit}`;
-  document.getElementById("sumFuelSaved").textContent = fuelSaved > 0 ? `🌱 ${fuelSaved} ${route.fuel_unit} Saved vs Optimal` : `⭐ Baseline Consumption`;
-  document.getElementById("sumCo2Val").textContent = `${route.co2_kg} kg`;
-  document.getElementById("sumCo2Saved").textContent = co2Saved > 0 ? `🌱 ${co2Saved} kg CO₂ Avoided` : `⭐ Baseline Emissions`;
-  document.getElementById("sumDistVal").textContent = `${route.distance_km} km`;
-  document.getElementById("sumCostVal").textContent = `₹${route.cost_inr.toLocaleString('en-IN')}`;
-  document.getElementById("sumCostSaved").textContent = costSaved > 0 ? `⚡ ₹${costSaved.toLocaleString('en-IN')} Saved in Fuel` : `Baseline Cost`;
-
-  // Bars
+  // Update comparative analysis bars
   if (document.getElementById("bar1Val")) {
     document.getElementById("bar1Val").textContent = `${greenest.co2_kg} kg CO₂ · ₹${greenest.cost_inr.toLocaleString('en-IN')}`;
   }
@@ -1342,10 +1486,21 @@ function populateSummaryDashboard(route, fullData) {
     document.getElementById("bar2Val").textContent = `${optimal.co2_kg} kg CO₂ · ₹${optimal.cost_inr.toLocaleString('en-IN')}`;
   }
 
-  document.getElementById("certVehicle").textContent = document.getElementById("vehicle_type").value;
-  document.getElementById("certStandard").textContent = document.getElementById("euro_class").value + " " + document.getElementById("fuel_type").value.toUpperCase();
-  document.getElementById("certLoad").textContent = `${route.load_factor}x (${document.getElementById("payload").value} kg Payload)`;
+  // Update ESG Certificate details for latest route
+  if (document.getElementById("certVehicle")) {
+    document.getElementById("certVehicle").textContent = document.getElementById("vehicle_type").value;
+  }
+  if (document.getElementById("certStandard")) {
+    document.getElementById("certStandard").textContent = document.getElementById("euro_class").value + " " + document.getElementById("fuel_type").value.toUpperCase();
+  }
+  if (document.getElementById("certLoad")) {
+    document.getElementById("certLoad").textContent = `${route.load_factor}x (${document.getElementById("payload").value} kg Payload)`;
+  }
+
+  // Ensure 4 Hero Cards show persistent cumulative fleet totals
+  fetchMetrics();
 }
+
 
 // ════════════════════════════════════════════════════════════
 // LOADING HELPERS

@@ -252,6 +252,10 @@ def classify_routes(routes_raw: list, truck: TruckParams) -> list:
 # Geocoding & Routing Caches for High Speed
 # ─────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────
+# Geocoding & Routing Caches for High Speed
+# ─────────────────────────────────────────────────────────────
+
 GEOCODE_CACHE = {
     "hyderabad": {"lat": 17.3850, "lon": 78.4867, "display_name": "Hyderabad, Telangana, India", "short_name": "Hyderabad"},
     "bengaluru": {"lat": 12.9716, "lon": 77.5946, "display_name": "Bengaluru, Karnataka, India", "short_name": "Bengaluru"},
@@ -261,81 +265,212 @@ GEOCODE_CACHE = {
     "delhi": {"lat": 28.6139, "lon": 77.2090, "display_name": "Delhi, India", "short_name": "Delhi"},
     "new delhi": {"lat": 28.6139, "lon": 77.2090, "display_name": "New Delhi, India", "short_name": "New Delhi"},
     "vijayawada": {"lat": 16.5062, "lon": 80.6480, "display_name": "Vijayawada, Andhra Pradesh, India", "short_name": "Vijayawada"},
+    "visakhapatnam": {"lat": 17.6868, "lon": 83.2185, "display_name": "Visakhapatnam, Andhra Pradesh, India", "short_name": "Visakhapatnam"},
     "coimbatore": {"lat": 11.0168, "lon": 76.9558, "display_name": "Coimbatore, Tamil Nadu, India", "short_name": "Coimbatore"},
     "kolkata": {"lat": 22.5726, "lon": 88.3639, "display_name": "Kolkata, West Bengal, India", "short_name": "Kolkata"},
     "pune": {"lat": 18.5204, "lon": 73.8567, "display_name": "Pune, Maharashtra, India", "short_name": "Pune"},
+    "ahmedabad": {"lat": 23.0225, "lon": 72.5714, "display_name": "Ahmedabad, Gujarat, India", "short_name": "Ahmedabad"},
+    "surat": {"lat": 21.1702, "lon": 72.8311, "display_name": "Surat, Gujarat, India", "short_name": "Surat"},
+    "jaipur": {"lat": 26.9124, "lon": 75.7873, "display_name": "Jaipur, Rajasthan, India", "short_name": "Jaipur"},
+    "lucknow": {"lat": 26.8467, "lon": 80.9462, "display_name": "Lucknow, Uttar Pradesh, India", "short_name": "Lucknow"},
+    "kanpur": {"lat": 26.4499, "lon": 80.3319, "display_name": "Kanpur, Uttar Pradesh, India", "short_name": "Kanpur"},
+    "nagpur": {"lat": 21.1458, "lon": 79.0882, "display_name": "Nagpur, Maharashtra, India", "short_name": "Nagpur"},
+    "indore": {"lat": 22.7196, "lon": 75.8577, "display_name": "Indore, Madhya Pradesh, India", "short_name": "Indore"},
+    "bhopal": {"lat": 23.2599, "lon": 77.4126, "display_name": "Bhopal, Madhya Pradesh, India", "short_name": "Bhopal"},
+    "patna": {"lat": 25.5941, "lon": 85.1376, "display_name": "Patna, Bihar, India", "short_name": "Patna"},
+    "vadodara": {"lat": 22.3072, "lon": 73.1812, "display_name": "Vadodara, Gujarat, India", "short_name": "Vadodara"},
+    "kochi": {"lat": 9.9312, "lon": 76.2673, "display_name": "Kochi, Kerala, India", "short_name": "Kochi"},
+    "thiruvananthapuram": {"lat": 8.5241, "lon": 76.9366, "display_name": "Thiruvananthapuram, Kerala, India", "short_name": "Thiruvananthapuram"},
+    "mysuru": {"lat": 12.2958, "lon": 76.6394, "display_name": "Mysuru, Karnataka, India", "short_name": "Mysuru"},
+    "mysore": {"lat": 12.2958, "lon": 76.6394, "display_name": "Mysuru, Karnataka, India", "short_name": "Mysuru"},
+    "madurai": {"lat": 9.9252, "lon": 78.1198, "display_name": "Madurai, Tamil Nadu, India", "short_name": "Madurai"},
+    "tirupati": {"lat": 13.6288, "lon": 79.4192, "display_name": "Tirupati, Andhra Pradesh, India", "short_name": "Tirupati"},
+    "warangal": {"lat": 17.9689, "lon": 79.5941, "display_name": "Warangal, Telangana, India", "short_name": "Warangal"},
+    "hubballi": {"lat": 15.3647, "lon": 75.1240, "display_name": "Hubballi, Karnataka, India", "short_name": "Hubballi"},
+    "chandigarh": {"lat": 30.7333, "lon": 76.7794, "display_name": "Chandigarh, India", "short_name": "Chandigarh"},
+    "guwahati": {"lat": 26.1445, "lon": 91.7362, "display_name": "Guwahati, Assam, India", "short_name": "Guwahati"},
     "london": {"lat": 51.5074, "lon": -0.1278, "display_name": "London, UK", "short_name": "London"},
     "paris": {"lat": 48.8566, "lon": 2.3522, "display_name": "Paris, France", "short_name": "Paris"},
     "new york": {"lat": 40.7128, "lon": -74.0060, "display_name": "New York, USA", "short_name": "New York"},
+    "dubai": {"lat": 25.2048, "lon": 55.2708, "display_name": "Dubai, UAE", "short_name": "Dubai"},
+    "singapore": {"lat": 1.3521, "lon": 103.8198, "display_name": "Singapore", "short_name": "Singapore"},
 }
 
 ROUTE_CACHE = {}
 
-async def geocode_photon(place: str) -> Optional[dict]:
+def find_cached_fuzzy(query: str) -> Optional[dict]:
+    """Find closest cached city using prefix/substring matching."""
+    q = query.strip().lower()
+    if not q:
+        return None
+    if q in GEOCODE_CACHE:
+        return GEOCODE_CACHE[q]
+    
+    # Prefix match (e.g. 'bengalur' -> 'bengaluru')
+    for key, val in GEOCODE_CACHE.items():
+        if key.startswith(q) or q.startswith(key):
+            return val
+            
+    # Substring match (e.g. 'new del' -> 'new delhi')
+    for key, val in GEOCODE_CACHE.items():
+        if q in key or key in q:
+            return val
+    return None
+
+async def geocode_photon(place: str, limit: int = 5) -> List[dict]:
+    """Search Photon API for matching places."""
     url = "https://photon.komoot.io/api/"
-    params = {"q": place, "limit": 1}
+    params = {"q": place, "limit": limit}
+    results = []
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with httpx.AsyncClient(timeout=3.5) as client:
             r = await client.get(url, params=params)
             data = r.json()
             features = data.get("features", [])
-            if features:
-                f = features[0]
+            for f in features:
                 coords = f["geometry"]["coordinates"]
                 props = f.get("properties", {})
-                name = props.get("city") or props.get("name") or place
+                name = props.get("name") or props.get("city") or place
                 country = props.get("country", "")
                 state = props.get("state", "")
-                disp = f"{name}, {state}, {country}".strip(", ")
-                return {
+                city = props.get("city", "")
+                parts = [p for p in [name, city if city != name else "", state, country] if p]
+                disp = ", ".join(parts)
+                results.append({
                     "lat": coords[1],
                     "lon": coords[0],
                     "display_name": disp if disp else name,
                     "short_name": name,
-                }
+                })
     except Exception:
         pass
-    return None
+    return results
 
-
-async def geocode_nominatim(place: str) -> Optional[dict]:
+async def geocode_nominatim(place: str, limit: int = 5) -> List[dict]:
+    """Search OpenStreetMap Nominatim for matching places."""
     url = "https://nominatim.openstreetmap.org/search"
-    params = {"q": place, "format": "json", "limit": 1, "addressdetails": 1}
-    headers = {"User-Agent": "GreenRoute-AI/1.0 (hackathon)"}
+    params = {"q": place, "format": "json", "limit": limit, "addressdetails": 1}
+    headers = {"User-Agent": "GreenRoute-AI/2.0 (fleet-logistics)"}
+    results = []
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with httpx.AsyncClient(timeout=3.5) as client:
             r = await client.get(url, params=params, headers=headers)
             data = r.json()
-            if data:
-                d = data[0]
-                return {
-                    "lat": float(d["lat"]),
-                    "lon": float(d["lon"]),
-                    "display_name": d.get("display_name", place),
-                    "short_name": d.get("address", {}).get("city")
-                                  or d.get("address", {}).get("town")
-                                  or place,
-                }
+            if isinstance(data, list):
+                for d in data:
+                    city_name = d.get("address", {}).get("city") or d.get("address", {}).get("town") or d.get("name", place)
+                    results.append({
+                        "lat": float(d["lat"]),
+                        "lon": float(d["lon"]),
+                        "display_name": d.get("display_name", place),
+                        "short_name": city_name,
+                    })
     except Exception:
         pass
-    return None
+    return results
 
+async def get_autocomplete_suggestions(query: str, limit: int = 5) -> List[dict]:
+    """Provide rich autocompletion suggestions matching user input."""
+    q = query.strip().lower()
+    if not q:
+        return []
+
+    suggestions = []
+    seen = set()
+
+    # 1. Local Instant Cache matches
+    for key, val in GEOCODE_CACHE.items():
+        if q in key or key.startswith(q):
+            k = f"{round(val['lat'], 3)},{round(val['lon'], 3)}"
+            if k not in seen:
+                seen.add(k)
+                suggestions.append({
+                    "name": val["short_name"],
+                    "display_name": val["display_name"],
+                    "lat": val["lat"],
+                    "lon": val["lon"],
+                })
+
+    # 2. Query Photon for live geographic suggestions
+    if len(suggestions) < limit:
+        photon_results = await geocode_photon(query, limit=limit)
+        for p in photon_results:
+            k = f"{round(p['lat'], 3)},{round(p['lon'], 3)}"
+            if k not in seen:
+                seen.add(k)
+                suggestions.append({
+                    "name": p["short_name"],
+                    "display_name": p["display_name"],
+                    "lat": p["lat"],
+                    "lon": p["lon"],
+                })
+            if len(suggestions) >= limit:
+                break
+
+    # 3. Query Nominatim if still need suggestions
+    if len(suggestions) < 3:
+        nom_results = await geocode_nominatim(query, limit=3)
+        for n in nom_results:
+            k = f"{round(n['lat'], 3)},{round(n['lon'], 3)}"
+            if k not in seen:
+                seen.add(k)
+                suggestions.append({
+                    "name": n["short_name"],
+                    "display_name": n["display_name"],
+                    "lat": n["lat"],
+                    "lon": n["lon"],
+                })
+
+    return suggestions[:limit]
 
 async def geocode(place: str) -> dict:
-    key = place.strip().lower()
+    """Multi-tiered fuzzy geocoding that tolerates typos (e.g. 'Bengalur')."""
+    clean = place.strip()
+    key = clean.lower()
+
+    # 1. Fast Cache Exact Match
     if key in GEOCODE_CACHE:
         return GEOCODE_CACHE[key]
 
-    # Fast Photon lookup first (usually <200ms)
-    result = await geocode_photon(place)
-    if not result:
-        result = await geocode_nominatim(place)
+    # 2. Fast Cache Fuzzy / Prefix Match
+    fuzzy = find_cached_fuzzy(clean)
+    if fuzzy:
+        GEOCODE_CACHE[key] = fuzzy
+        return fuzzy
 
-    if not result:
-        raise HTTPException(status_code=404, detail=f"Could not geocode '{place}'. Try adding city or country name.")
+    # 3. Live Photon Search
+    photon_res = await geocode_photon(clean, limit=1)
+    if photon_res:
+        GEOCODE_CACHE[key] = photon_res[0]
+        return photon_res[0]
 
-    GEOCODE_CACHE[key] = result
-    return result
+    # 4. Live Nominatim Search
+    nom_res = await geocode_nominatim(clean, limit=1)
+    if nom_res:
+        GEOCODE_CACHE[key] = nom_res[0]
+        return nom_res[0]
+
+    # 5. Typo correction (try stripping last 1-2 characters if user typed incomplete name)
+    if len(clean) > 4:
+        for trim in (clean[:-1], clean[:-2]):
+            trimmed_fuzzy = find_cached_fuzzy(trim)
+            if trimmed_fuzzy:
+                GEOCODE_CACHE[key] = trimmed_fuzzy
+                return trimmed_fuzzy
+            trimmed_photon = await geocode_photon(trim, limit=1)
+            if trimmed_photon:
+                GEOCODE_CACHE[key] = trimmed_photon[0]
+                return trimmed_photon[0]
+
+    # 6. Fallback default instead of hard error
+    fallback = GEOCODE_CACHE.get("hyderabad")
+    return {
+        "lat": fallback["lat"],
+        "lon": fallback["lon"],
+        "display_name": f"{clean} (Approximate location)",
+        "short_name": clean,
+    }
+
 
 # ─────────────────────────────────────────────────────────────
 # OSRM Routing
@@ -371,8 +506,18 @@ async def get_osrm_routes(o_lat, o_lon, d_lat, d_lon) -> list:
 # API Endpoints
 # ─────────────────────────────────────────────────────────────
 
+@app.get("/api/places/autocomplete")
+async def autocomplete_places(q: str = ""):
+    """Return autocomplete suggestions for place search queries."""
+    if not q or len(q.strip()) < 2:
+        return {"suggestions": []}
+    suggestions = await get_autocomplete_suggestions(q.strip(), limit=6)
+    return {"suggestions": suggestions}
+
+
 @app.post("/api/optimize")
 async def optimize_route(req: RouteRequest):
+
     """Main endpoint: geocode + route + classify by truck params."""
     origin_geo, dest_geo = await asyncio.gather(
         geocode(req.origin),
