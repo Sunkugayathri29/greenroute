@@ -12,10 +12,9 @@
   * Dynamic Payload Weight Load Factor ($1.0\times$ to $1.3\times$ based on cargo weight)
   * Fuel Type (*Diesel / Petrol / CNG / Electric / Hybrid*)
   * Emission Standards (*BS-VI / BS-V / BS-IV / BS-III / Euro VI*)
-* 🟢 **3-Corridor Multi-Route Classification:** Renders 3 candidate routes simultaneously on MapLibre GL JS:
+* 🟢 **2-Corridor Multi-Route Classification:** Renders 2 candidate routes simultaneously on MapLibre GL JS:
   * 🟢 **Greenest Route:** Lowest CO₂ emissions
   * 🔵 **Optimal Route:** Recommended speed-cost-carbon balance
-  * ⚡ **Fastest Route:** Shortest travel duration
 * 🛰️ **3 Map Modes:** Toggle between 🗺️ **Street**, 🚦 **Traffic** (Dark mode), and 🛰️ **Satellite** (Esri World Imagery) basemaps.
 * 🚚 **Live Journey Simulation:** Simulates delivery truck transit along polyline coordinates with real-time distance, speed, and fuel telemetry HUD.
 * 📊 **Post-Trip ESG Dashboard:** Interactive post-delivery analytics showcasing fuel saved, CO₂ avoided, trip cost in ₹ INR, and downloadable ESG compliance certificates.

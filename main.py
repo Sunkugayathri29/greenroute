@@ -150,13 +150,13 @@ def calculate_metrics(distance_km: float, duration_seconds: float, truck: TruckP
 def classify_routes(routes_raw: list, truck: TruckParams) -> list:
     """
     Given a list of raw OSRM routes, calculate metrics and classify them as:
-    Greenest, Fastest, Optimal (Balanced).
-    Returns exactly 3 route objects with color + label assigned.
+    Greenest, Optimal (Balanced).
+    Returns exactly 2 route objects with color + label assigned.
     """
-    traffic_levels = ["light", "medium", "heavy"]
+    traffic_levels = ["light", "medium"]
     enriched = []
 
-    for i, r in enumerate(routes_raw[:3]):
+    for i, r in enumerate(routes_raw[:2]):
         dist_km = r["distance"] / 1000.0
         dur_s = r["duration"]
         traffic = traffic_levels[i % len(traffic_levels)]
@@ -169,12 +169,12 @@ def classify_routes(routes_raw: list, truck: TruckParams) -> list:
             **metrics,
         })
 
-    if len(enriched) < 3:
-        # Synthesize extra variants if OSRM only returned 1-2 routes
+    if len(enriched) < 2:
+        # Synthesize extra variants if OSRM only returned 1 route
         base = enriched[0]
-        while len(enriched) < 3:
+        while len(enriched) < 2:
             idx = len(enriched)
-            factor = [1.0, 1.04, 1.09][idx]
+            factor = [1.0, 1.05][idx]
             traffic = traffic_levels[idx]
             dist = base["distance_km"] * factor
             dur = int(base["duration_s"] * factor)
@@ -187,18 +187,13 @@ def classify_routes(routes_raw: list, truck: TruckParams) -> list:
                 **m,
             })
 
-    # Assign labels — ensure all three are always unique
-    # Sort by CO2: index 0 = greenest; sort by raw duration: index 0 = fastest
-    by_co2      = sorted(range(len(enriched)), key=lambda i: enriched[i]["co2_kg"])
-    by_duration = sorted(range(len(enriched)), key=lambda i: enriched[i]["duration_s"])
+    # Assign labels — Greenest and Optimal
+    # Sort by CO2: index 0 = greenest
+    by_co2 = sorted(range(len(enriched)), key=lambda i: enriched[i]["co2_kg"])
 
     labels = {}
-    labels[by_co2[0]]      = ("greenest", "🌱 Greenest", "#16a34a", "Lowest CO₂ emissions")
-    # Fastest: pick the shortest-duration that isn't already greenest
-    for idx in by_duration:
-        if idx not in labels:
-            labels[idx] = ("fastest", "⚡ Fastest", "#6b7280", "Shortest travel time")
-            break
+    labels[by_co2[0]] = ("greenest", "🌱 Greenest", "#16a34a", "Lowest CO₂ emissions")
+
     # Optimal: whatever is left
     for j in range(len(enriched)):
         if j not in labels:

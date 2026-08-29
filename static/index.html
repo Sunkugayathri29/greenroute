@@ -523,7 +523,6 @@ body {
       <div class="map-legend" id="mapLegend" style="display:none">
         <div class="legend-item"><div class="legend-line" style="background:#16a34a"></div>🌱 Greenest</div>
         <div class="legend-item"><div class="legend-line" style="background:#2563eb"></div>⭐ Optimal</div>
-        <div class="legend-item"><div class="legend-line" style="background:#6b7280"></div>⚡ Fastest</div>
       </div>
 
       <!-- Status Bar -->
@@ -586,7 +585,7 @@ body {
 
         <div class="bar-cmp-row">
           <div class="bar-cmp-label">
-            <span>🌱 Greenest Route (Selected)</span>
+            <span>🌱 Greenest Route</span>
             <span id="bar1Val">497.6 kg CO₂ · ₹17,084</span>
           </div>
           <div class="bar-cmp-bg"><div class="bar-cmp-fill" id="bar1Fill" style="width: 75%; background: var(--green);"></div></div>
@@ -597,15 +596,7 @@ body {
             <span>⭐ Optimal Route</span>
             <span id="bar2Val">542.4 kg CO₂ · ₹18,620</span>
           </div>
-          <div class="bar-cmp-bg"><div class="bar-cmp-fill" id="bar2Fill" style="width: 85%; background: var(--blue);"></div></div>
-        </div>
-
-        <div class="bar-cmp-row">
-          <div class="bar-cmp-label">
-            <span>⚡ Fastest Route (Unoptimized)</span>
-            <span id="bar3Val">583.9 kg CO₂ · ₹20,045</span>
-          </div>
-          <div class="bar-cmp-bg"><div class="bar-cmp-fill" id="bar3Fill" style="width: 100%; background: var(--gray);"></div></div>
+          <div class="bar-cmp-bg"><div class="bar-cmp-fill" id="bar2Fill" style="width: 100%; background: var(--blue);"></div></div>
         </div>
       </div>
 
@@ -908,7 +899,7 @@ async function optimizeRoute() {
 // ════════════════════════════════════════════════════════════
 // DRAW ROUTES & MARKERS
 // ════════════════════════════════════════════════════════════
-const ROUTE_COLORS = { greenest: "#16a34a", optimal: "#2563eb", fastest: "#4b5563" };
+const ROUTE_COLORS = { greenest: "#16a34a", optimal: "#2563eb" };
 
 function renderRoutes(routes, selectedIdx = -1) {
   routes.forEach((_, i) => {
@@ -1051,7 +1042,6 @@ function renderRouteCards(routes, data) {
 function getWhyText(r) {
   const texts = {
     greenest: `Produces lowest CO₂ (${r.co2_kg} kg). Ideal for corporate ESG sustainability targets.`,
-    fastest:  `Shortest travel time (${r.eta}) with ${capitalize(r.traffic)} traffic. Priority delivery choice.`,
     optimal:  `Best balance between travel time, fuel expenditure, and carbon emissions.`,
   };
   return texts[r.type] || "Optimized route trajectory.";
@@ -1070,7 +1060,7 @@ function selectRoute(idx) {
   if (card) {
     card.classList.add("selected");
     const r = currentRoutes[idx];
-    const badgeClass = r.type === "greenest" ? "" : r.type === "optimal" ? " blue-badge" : " gray-badge";
+    const badgeClass = r.type === "greenest" ? "" : " blue-badge";
     const badge = document.createElement("div");
     badge.className = "selected-badge" + badgeClass;
     badge.textContent = "SELECTED";
@@ -1145,23 +1135,28 @@ function startJourneySimulation(e, idx) {
 function populateSummaryDashboard(route, fullData) {
   if (!route) return;
   const greenest = currentRoutes.find(r => r.type === "greenest") || route;
-  const fastest  = currentRoutes.find(r => r.type === "fastest")  || route;
+  const optimal  = currentRoutes.find(r => r.type === "optimal")  || route;
 
-  const fuelSaved = (fastest.fuel - route.fuel).toFixed(1);
-  const co2Saved  = (fastest.co2_kg - route.co2_kg).toFixed(1);
-  const costSaved = (fastest.cost_inr - route.cost_inr);
+  const compareTarget = (route.type === "greenest" && optimal !== greenest) ? optimal : route;
+  const fuelSaved = (compareTarget.fuel - route.fuel).toFixed(1);
+  const co2Saved  = (compareTarget.co2_kg - route.co2_kg).toFixed(1);
+  const costSaved = (compareTarget.cost_inr - route.cost_inr);
 
   document.getElementById("sumFuelVal").textContent = `${route.fuel} ${route.fuel_unit}`;
-  document.getElementById("sumFuelSaved").textContent = fuelSaved > 0 ? `🌱 ${fuelSaved} ${route.fuel_unit} Saved vs Fastest` : `⚡ Baseline Consumption`;
+  document.getElementById("sumFuelSaved").textContent = fuelSaved > 0 ? `🌱 ${fuelSaved} ${route.fuel_unit} Saved vs Optimal` : `⭐ Baseline Consumption`;
   document.getElementById("sumCo2Val").textContent = `${route.co2_kg} kg`;
-  document.getElementById("sumCo2Saved").textContent = co2Saved > 0 ? `🌱 ${co2Saved} kg CO₂ Avoided` : `⚡ Baseline Emissions`;
+  document.getElementById("sumCo2Saved").textContent = co2Saved > 0 ? `🌱 ${co2Saved} kg CO₂ Avoided` : `⭐ Baseline Emissions`;
   document.getElementById("sumDistVal").textContent = `${route.distance_km} km`;
   document.getElementById("sumCostVal").textContent = `₹${route.cost_inr.toLocaleString('en-IN')}`;
   document.getElementById("sumCostSaved").textContent = costSaved > 0 ? `⚡ ₹${costSaved.toLocaleString('en-IN')} Saved in Fuel` : `Baseline Cost`;
 
   // Bars
-  document.getElementById("bar1Val").textContent = `${greenest.co2_kg} kg CO₂ · ₹${greenest.cost_inr.toLocaleString('en-IN')}`;
-  document.getElementById("bar3Val").textContent = `${fastest.co2_kg} kg CO₂ · ₹${fastest.cost_inr.toLocaleString('en-IN')}`;
+  if (document.getElementById("bar1Val")) {
+    document.getElementById("bar1Val").textContent = `${greenest.co2_kg} kg CO₂ · ₹${greenest.cost_inr.toLocaleString('en-IN')}`;
+  }
+  if (document.getElementById("bar2Val")) {
+    document.getElementById("bar2Val").textContent = `${optimal.co2_kg} kg CO₂ · ₹${optimal.cost_inr.toLocaleString('en-IN')}`;
+  }
 
   document.getElementById("certVehicle").textContent = document.getElementById("vehicle_type").value;
   document.getElementById("certStandard").textContent = document.getElementById("euro_class").value + " " + document.getElementById("fuel_type").value.toUpperCase();
