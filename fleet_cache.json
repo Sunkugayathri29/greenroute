@@ -1,0 +1,66 @@
+{
+  "company_config": {
+    "company_name": "GreenLogistics India Pvt Ltd",
+    "fleet_id": "IN-FLEET-8842",
+    "hub_city": "Hyderabad Hub",
+    "assigned_driver": "Ramesh Kumar",
+    "vehicle_plate": "TS 09 EA 4521",
+    "updated_at": "2026-08-29T18:51:54.219939+00:00"
+  },
+  "fleet_vehicles": [
+    {
+      "vehicle_plate": "KA 01 MF 3312",
+      "driver_name": "Venkatesh Rao",
+      "vehicle_type": "Electric Van",
+      "route_corridor": "Bengaluru Local",
+      "status": "Destination Reached",
+      "fuel_consumed": 95.0,
+      "fuel_unit": "kWh",
+      "co2_saved_kg": 110.5,
+      "created_at": "2026-08-29T18:51:56.869686+00:00",
+      "id": "f_1788029517"
+    },
+    {
+      "vehicle_plate": "AP 16 BD 9820",
+      "driver_name": "Suresh Sharma",
+      "vehicle_type": "Medium Truck",
+      "route_corridor": "Chennai \u2192 Vijayawada",
+      "status": "In Transit",
+      "fuel_consumed": 112.4,
+      "fuel_unit": "L",
+      "co2_saved_kg": 42.1,
+      "created_at": "2026-08-29T18:51:55.895630+00:00",
+      "id": "f_1788029516"
+    },
+    {
+      "vehicle_plate": "TS 09 EA 4521",
+      "driver_name": "Ramesh Kumar",
+      "vehicle_type": "Heavy Freight Truck",
+      "route_corridor": "Hyderabad \u2192 Bengaluru",
+      "status": "Destination Reached",
+      "fuel_consumed": 185.7,
+      "fuel_unit": "L",
+      "co2_saved_kg": 86.3,
+      "created_at": "2026-08-29T18:51:55.154597+00:00",
+      "id": "f_1788029515"
+    }
+  ],
+  "trip_logs": [
+    {
+      "origin": "Hyderabad",
+      "destination": "Bengaluru",
+      "vehicle_type": "Heavy Freight Truck",
+      "payload_kg": 12000,
+      "fuel_type": "diesel",
+      "euro_class": "BS-VI / Euro VI",
+      "distance_km": 562.0,
+      "duration_s": 27200,
+      "fuel_consumed": 185.7,
+      "fuel_unit": "L",
+      "co2_emitted_kg": 497.6,
+      "trip_cost_inr": 17084,
+      "created_at": "2026-08-29T18:51:57.670975+00:00",
+      "id": "t_1788029518"
+    }
+  ]
+}

@@ -27,6 +27,8 @@ app.add_middleware(
 # Pydantic Models
 # ─────────────────────────────────────────────────────────────
 
+from db_manager import db_manager
+
 class TruckParams(BaseModel):
     vehicle_type: str = "Heavy Freight Truck"   # Heavy Freight Truck / Medium Truck / Light Van
     payload_kg: float = 10000                   # kg
@@ -45,6 +47,39 @@ class CoordRouteRequest(BaseModel):
     dest_lat: float
     dest_lon: float
     truck: TruckParams
+
+class CompanyConfigPayload(BaseModel):
+    company_name: str = "GreenLogistics India Pvt Ltd"
+    fleet_id: str = "IN-FLEET-8842"
+    hub_city: str = "Hyderabad Hub"
+    assigned_driver: str = "Ramesh Kumar"
+    vehicle_plate: str = "TS 09 EA 4521"
+
+class FleetVehiclePayload(BaseModel):
+    vehicle_plate: str
+    driver_name: str
+    vehicle_type: str
+    route_corridor: str
+    status: str = "In Transit"
+    fuel_consumed: float = 0.0
+    fuel_unit: str = "L"
+    co2_saved_kg: float = 0.0
+
+class TripLogPayload(BaseModel):
+    origin: str
+    destination: str
+    vehicle_type: str
+    payload_kg: float
+    fuel_type: str
+    euro_class: str
+    distance_km: float
+    duration_s: int
+    fuel_consumed: float
+    fuel_unit: str
+    co2_emitted_kg: float
+    trip_cost_inr: float
+
+
 
 # ─────────────────────────────────────────────────────────────
 # Emission & Fuel Constants
@@ -386,7 +421,60 @@ async def optimize_route_coords(req: CoordRouteRequest):
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "GreenRoute AI"}
+    db_status = await db_manager.get_status()
+    return {"status": "ok", "service": "GreenRoute AI", "db": db_status}
+
+
+# ─────────────────────────────────────────────────────────────
+# Database & Cache Endpoints
+# ─────────────────────────────────────────────────────────────
+
+@app.get("/api/db/status")
+async def get_db_status():
+    return await db_manager.get_status()
+
+
+@app.get("/api/db/config")
+async def get_company_config():
+    config = await db_manager.get_company_config()
+    db_status = await db_manager.get_status()
+    return {"config": config, "source": db_status["mode"]}
+
+
+@app.post("/api/db/config")
+async def save_company_config(payload: CompanyConfigPayload):
+    saved = await db_manager.save_company_config(payload.dict())
+    db_status = await db_manager.get_status()
+    return {"config": saved, "source": db_status["mode"], "message": "Company configuration saved successfully"}
+
+
+@app.get("/api/db/fleet")
+async def get_fleet_vehicles():
+    vehicles = await db_manager.get_fleet_vehicles()
+    db_status = await db_manager.get_status()
+    return {"vehicles": vehicles, "source": db_status["mode"]}
+
+
+@app.post("/api/db/fleet")
+async def add_fleet_vehicle(payload: FleetVehiclePayload):
+    added = await db_manager.add_fleet_vehicle(payload.dict())
+    db_status = await db_manager.get_status()
+    return {"vehicle": added, "source": db_status["mode"], "message": "Vehicle added to fleet monitoring"}
+
+
+@app.get("/api/db/metrics")
+async def get_metrics():
+    metrics = await db_manager.get_aggregated_metrics()
+    db_status = await db_manager.get_status()
+    return {"metrics": metrics, "source": db_status["mode"]}
+
+
+@app.post("/api/db/trips")
+async def record_trip(payload: TripLogPayload):
+    trip = await db_manager.record_trip_log(payload.dict())
+    db_status = await db_manager.get_status()
+    return {"trip": trip, "source": db_status["mode"], "message": "Trip logged successfully"}
+
 
 
 # ─────────────────────────────────────────────────────────────

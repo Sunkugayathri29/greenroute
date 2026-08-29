@@ -406,6 +406,10 @@ body {
 
   <!-- Right Controls -->
   <div class="right-controls">
+    <div id="dbStatusBadge" style="font-size:12px; font-weight:600; padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); display:flex; align-items:center; gap:6px;">
+      <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#eab308;"></span> checking...
+    </div>
+
     <button class="btn-admin" onclick="openAdminModal()">⚙️ Admin Config</button>
 
     <select class="theme-select" id="themeSelect" onchange="changeTheme(this.value)">
@@ -414,6 +418,7 @@ body {
       <option value="cyber">⚡ Cyber Fleet</option>
     </select>
   </div>
+
 </header>
 
 <!-- ═══ MAIN CONTAINER ════════════════════════════════════════ -->
@@ -827,9 +832,54 @@ function setMapMode(mode, btn) {
 }
 
 // ════════════════════════════════════════════════════════════
-// ADMIN PORTAL MODAL
+// DATABASE & LOCAL CACHE INTEGRATION
 // ════════════════════════════════════════════════════════════
-function openAdminModal() {
+let dbMode = "local_cache";
+
+async function fetchDbStatus() {
+  try {
+    const res = await fetch("/api/db/status");
+    const data = await res.json();
+    dbMode = data.mode;
+    const badge = document.getElementById("dbStatusBadge");
+    if (badge) {
+      if (data.connected) {
+        badge.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#16a34a;"></span> 🟢 Supabase Cloud`;
+        badge.title = `Connected to Supabase`;
+      } else {
+        badge.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#eab308;"></span> 🟡 Local Cache Mode`;
+        badge.title = `Database unconfigured or offline. Using local cache fallback.`;
+      }
+    }
+  } catch (e) {
+    console.warn("DB status check failed:", e);
+  }
+}
+
+async function fetchCompanyConfig() {
+  try {
+    const res = await fetch("/api/db/config");
+    const data = await res.json();
+    const cfg = data.config || {};
+    if (cfg.company_name) {
+      document.getElementById("dispCompName").textContent = cfg.company_name;
+      document.getElementById("cfgCompName").value = cfg.company_name;
+    }
+    if (cfg.fleet_id) document.getElementById("cfgFleetId").value = cfg.fleet_id;
+    if (cfg.hub_city) document.getElementById("cfgHubCity").value = cfg.hub_city;
+    if (cfg.assigned_driver) document.getElementById("cfgDriverName").value = cfg.assigned_driver;
+    if (cfg.vehicle_plate) document.getElementById("cfgPlateNo").value = cfg.vehicle_plate;
+
+    if (cfg.fleet_id && cfg.assigned_driver && cfg.vehicle_plate) {
+      document.getElementById("dispFleetDetails").textContent = `Fleet ID: ${cfg.fleet_id} · Driver: ${cfg.assigned_driver} (${cfg.vehicle_plate})`;
+    }
+  } catch (e) {
+    console.error("Config fetch error:", e);
+  }
+}
+
+async function openAdminModal() {
+  await fetchCompanyConfig();
   document.getElementById("adminModal").classList.add("active");
 }
 
@@ -837,20 +887,157 @@ function closeAdminModal() {
   document.getElementById("adminModal").classList.remove("active");
 }
 
-function saveAdminConfig() {
-  const compName  = document.getElementById("cfgCompName").value;
-  const fleetId   = document.getElementById("cfgFleetId").value;
-  const driverName= document.getElementById("cfgDriverName").value;
-  const plateNo   = document.getElementById("cfgPlateNo").value;
+async function saveAdminConfig() {
+  const compName   = document.getElementById("cfgCompName").value.trim();
+  const fleetId    = document.getElementById("cfgFleetId").value.trim();
+  const hubCity    = document.getElementById("cfgHubCity").value.trim();
+  const driverName = document.getElementById("cfgDriverName").value.trim();
+  const plateNo    = document.getElementById("cfgPlateNo").value.trim();
 
-  document.getElementById("dispCompName").textContent = compName;
-  document.getElementById("dispFleetDetails").textContent = `Fleet ID: ${fleetId} · Driver: ${driverName} (${plateNo})`;
-  document.getElementById("tblPlate1").textContent = plateNo;
-  document.getElementById("tblDriver1").textContent = driverName;
-
-  closeAdminModal();
-  alert("✅ Company Configuration & Vehicle Details Saved Successfully!");
+  try {
+    const res = await fetch("/api/db/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        company_name: compName,
+        fleet_id: fleetId,
+        hub_city: hubCity,
+        assigned_driver: driverName,
+        vehicle_plate: plateNo
+      })
+    });
+    const data = await res.json();
+    
+    document.getElementById("dispCompName").textContent = compName;
+    document.getElementById("dispFleetDetails").textContent = `Fleet ID: ${fleetId} · Driver: ${driverName} (${plateNo})`;
+    
+    closeAdminModal();
+    const sourceLabel = data.source === "supabase" ? "Supabase Cloud DB" : "Local Cache";
+    alert(`✅ Company Configuration Saved Successfully (${sourceLabel})!`);
+    fetchFleetVehicles();
+  } catch (e) {
+    alert("Error saving config: " + e.message);
+  }
 }
+
+async function fetchFleetVehicles() {
+  try {
+    const res = await fetch("/api/db/fleet");
+    const data = await res.json();
+    renderFleetTable(data.vehicles || []);
+  } catch (e) {
+    console.error("Fleet vehicles fetch error:", e);
+  }
+}
+
+function renderFleetTable(vehicles) {
+  const tbody = document.getElementById("fleetTableBody");
+  if (!tbody || !vehicles.length) return;
+
+  tbody.innerHTML = vehicles.map(v => {
+    const statusClass = v.status === "Destination Reached" ? "status-active" : "status-transit";
+    const statusIcon = v.status === "Destination Reached" ? "🟢" : "🚚";
+    const fuelVal = v.fuel_consumed ? `${v.fuel_consumed} ${v.fuel_unit || 'L'}` : "0 L";
+    const co2Val = v.co2_saved_kg ? `🌱 ${v.co2_saved_kg} kg` : "0 kg";
+
+    return `
+      <tr>
+        <td><strong>${v.vehicle_plate}</strong></td>
+        <td>${v.driver_name}</td>
+        <td>${v.vehicle_type}</td>
+        <td>${v.route_corridor}</td>
+        <td><span class="status-pill ${statusClass}">${statusIcon} ${v.status}</span></td>
+        <td>${fuelVal}</td>
+        <td>${co2Val}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+async function fetchMetrics() {
+  try {
+    const res = await fetch("/api/db/metrics");
+    const data = await res.json();
+    const m = data.metrics || {};
+
+    if (m.total_fuel_consumed !== undefined) {
+      document.getElementById("sumFuelVal").textContent = `${m.total_fuel_consumed} ${m.fuel_unit || 'L'}`;
+    }
+    if (m.total_co2_emitted_kg !== undefined) {
+      document.getElementById("sumCo2Val").textContent = `${m.total_co2_emitted_kg} kg`;
+    }
+    if (m.total_distance_km !== undefined) {
+      document.getElementById("sumDistVal").textContent = `${m.total_distance_km} km`;
+    }
+    if (m.total_trip_cost_inr !== undefined) {
+      document.getElementById("sumCostVal").textContent = `₹${m.total_trip_cost_inr.toLocaleString('en-IN')}`;
+    }
+  } catch (e) {
+    console.error("Metrics fetch error:", e);
+  }
+}
+
+async function recordCompletedTrip(route) {
+  if (!route) return;
+  const origin = document.getElementById("origin").value.trim() || "Hyderabad";
+  const destination = document.getElementById("destination").value.trim() || "Bengaluru";
+  const vehicle_type = document.getElementById("vehicle_type").value;
+  const payload_kg = parseFloat(document.getElementById("payload").value) || 10000;
+  const fuel_type = document.getElementById("fuel_type").value;
+  const euro_class = document.getElementById("euro_class").value;
+  const driverName = document.getElementById("cfgDriverName") ? document.getElementById("cfgDriverName").value : "Ramesh Kumar";
+  const plateNo = document.getElementById("cfgPlateNo") ? document.getElementById("cfgPlateNo").value : "TS 09 EA 4521";
+
+  try {
+    await fetch("/api/db/trips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        origin,
+        destination,
+        vehicle_type,
+        payload_kg,
+        fuel_type,
+        euro_class,
+        distance_km: route.distance_km,
+        duration_s: route.eta_seconds || route.duration_s || 28000,
+        fuel_consumed: route.fuel,
+        fuel_unit: route.fuel_unit || "L",
+        co2_emitted_kg: route.co2_kg,
+        trip_cost_inr: route.cost_inr
+      })
+    });
+
+    await fetch("/api/db/fleet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vehicle_plate: plateNo,
+        driver_name: driverName,
+        vehicle_type: vehicle_type,
+        route_corridor: `${origin} → ${destination}`,
+        status: "Destination Reached",
+        fuel_consumed: route.fuel,
+        fuel_unit: route.fuel_unit || "L",
+        co2_saved_kg: 86.3
+      })
+    });
+
+    fetchMetrics();
+    fetchFleetVehicles();
+  } catch (e) {
+    console.error("Trip recording error:", e);
+  }
+}
+
+// Auto-initialize on startup
+window.addEventListener("DOMContentLoaded", () => {
+  fetchDbStatus();
+  fetchCompanyConfig();
+  fetchFleetVehicles();
+  fetchMetrics();
+});
+
 
 // ════════════════════════════════════════════════════════════
 // ROUTE OPTIMIZATION
@@ -1130,12 +1317,14 @@ function startJourneySimulation(e, idx) {
 
     if (progress >= 1.0) {
       clearInterval(simInterval);
+      recordCompletedTrip(route);
       setTimeout(() => {
         hud.classList.remove("active");
-        alert("🎉 Destination Reached! Opening Post-Trip Analytics Dashboard…");
+        alert("🎉 Destination Reached! Trip Logged to Database & Metrics Updated.");
         switchView("summary");
       }, 500);
     }
+
   }, 120);
 }
 
