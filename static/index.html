@@ -398,6 +398,43 @@ body {
 .modal-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .modal-close { font-size: 20px; cursor: pointer; background: none; border: none; color: var(--muted); }
 
+.custom-modal-backdrop {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 140;
+  display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+}
+.custom-modal-backdrop.active { display: flex; }
+.custom-modal {
+  width: min(420px, calc(100vw - 32px));
+  background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: 0 20px 45px rgba(0,0,0,0.22); overflow: hidden;
+}
+.custom-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 10px; border-bottom: 1px solid var(--border);
+}
+.custom-modal-title {
+  display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px;
+}
+.custom-modal-icon {
+  width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; background: rgba(22,163,74,0.12); color: var(--green);
+}
+.custom-modal-body {
+  padding: 18px 20px 12px; color: var(--text); font-size: 14px; line-height: 1.6;
+}
+.custom-modal-actions {
+  display: flex; justify-content: flex-end; gap: 10px; padding: 0 20px 20px;
+}
+.custom-modal-btn {
+  border: none; border-radius: 8px; padding: 10px 16px; font-weight: 600; font-family: inherit; cursor: pointer;
+}
+.custom-modal-btn.primary {
+  background: var(--green); color: #fff;
+}
+.custom-modal-btn.secondary {
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+}
+
 .dash-actions { display: flex; gap: 12px; margin-top: 10px; }
 .btn-dash {
   padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
@@ -644,12 +681,15 @@ body {
           Certified carbon-conscious freight dispatch.
         </p>
         <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: 8px; font-size: 12px; margin-bottom: 14px;">
+          <div><strong>Destination:</strong> <span id="certDestination">Hyderabad → Bengaluru</span></div>
           <div><strong>Vehicle:</strong> <span id="certVehicle">Heavy Freight Truck</span></div>
           <div><strong>Standard:</strong> <span id="certStandard">BS-VI / Euro VI Diesel</span></div>
           <div><strong>Load Factor:</strong> <span id="certLoad">1.18x (12,000 kg Payload)</span></div>
+          <div><strong>Fleet:</strong> <span id="certFleet">GreenLogistics India Pvt Ltd · IN-FLEET-8842</span></div>
         </div>
+        <div id="destinationReportList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px; font-size:12px;"></div>
         <div class="dash-actions">
-          <button class="btn-dash btn-dash-primary" onclick="alert('Exporting Official ESG Company Certificate PDF…')">📥 Export Report</button>
+          <button class="btn-dash btn-dash-primary" onclick="exportCurrentDestinationReport()">📥 Export Report</button>
         </div>
       </div>
     </div>
@@ -744,6 +784,23 @@ body {
     <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
       <button class="btn-dash btn-dash-secondary" onclick="closeAdminModal()">Cancel</button>
       <button class="btn-dash btn-dash-primary" onclick="saveAdminConfig()">💾 Save Config</button>
+    </div>
+  </div>
+</div>
+
+<div class="custom-modal-backdrop" id="customModalBackdrop" onclick="closeCustomModal(event)">
+  <div class="custom-modal" id="customModal" onclick="event.stopPropagation()">
+    <div class="custom-modal-header">
+      <div class="custom-modal-title">
+        <span class="custom-modal-icon" id="customModalIcon">ℹ️</span>
+        <span id="customModalTitle">Notification</span>
+      </div>
+      <button class="modal-close" id="customModalClose" aria-label="Close">✖</button>
+    </div>
+    <div class="custom-modal-body" id="customModalBody"></div>
+    <div class="custom-modal-actions">
+      <button class="custom-modal-btn secondary" id="customModalSecondaryBtn" style="display:none;">Cancel</button>
+      <button class="custom-modal-btn primary" id="customModalPrimaryBtn">OK</button>
     </div>
   </div>
 </div>
@@ -879,10 +936,10 @@ async function fetchDbStatus() {
     const badge = document.getElementById("dbStatusBadge");
     if (badge) {
       if (data.connected) {
-        badge.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#16a34a;"></span> 🟢 Supabase Cloud`;
-        badge.title = `Connected to Supabase`;
+        badge.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#16a34a;"></span>`;
+        badge.title = `Database connected`;
       } else {
-        badge.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#eab308;"></span> 🟡 Local Cache Mode`;
+        badge.innerHTML = `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#eab308;"></span> Local Cache`;
         badge.title = `Database unconfigured or offline. Using local cache fallback.`;
       }
     }
@@ -947,11 +1004,11 @@ async function saveAdminConfig() {
     document.getElementById("dispFleetDetails").textContent = `Fleet ID: ${fleetId} · Driver: ${driverName} (${plateNo})`;
     
     closeAdminModal();
-    const sourceLabel = data.source === "supabase" ? "Supabase Cloud DB" : "Local Cache";
-    alert(`✅ Company Configuration Saved Successfully (${sourceLabel})!`);
+  const sourceLabel = data.source === "supabase" ? "Cloud sync" : "Local cache";
+  showCustomAlert(`Company configuration saved successfully (${sourceLabel}).`, "Saved", "success");
     fetchFleetVehicles();
   } catch (e) {
-    alert("Error saving config: " + e.message);
+  showCustomAlert("Error saving config: " + e.message, "Update failed", "error");
   }
 }
 
@@ -963,6 +1020,224 @@ async function fetchFleetVehicles() {
   } catch (e) {
     console.error("Fleet vehicles fetch error:", e);
   }
+}
+
+function getCurrentConfigSnapshot() {
+  const companyName = document.getElementById("dispCompName")?.textContent || "GreenLogistics India Pvt Ltd";
+  const fleetId = document.getElementById("cfgFleetId")?.value || "IN-FLEET-8842";
+  const driverName = document.getElementById("cfgDriverName")?.value || "Ramesh Kumar";
+  const plateNo = document.getElementById("cfgPlateNo")?.value || "TS 09 EA 4521";
+  const vehicleType = document.getElementById("vehicle_type")?.value || "Heavy Freight Truck";
+  const fuelType = document.getElementById("fuel_type")?.value || "diesel";
+  const standard = document.getElementById("euro_class")?.value || "BS-VI / Euro VI";
+  const payloadValue = document.getElementById("payload")?.value || "12000";
+  const origin = document.getElementById("origin")?.value.trim() || "Hyderabad";
+  const destination = document.getElementById("destination")?.value.trim() || "Bengaluru";
+  const route = currentRoutes[selectedRouteIdx] || currentRoutes[0] || null;
+
+  return {
+    companyName,
+    fleetId,
+    driverName,
+    plateNo,
+    vehicleType,
+    fuelType,
+    standard,
+    payloadValue,
+    origin,
+    destination,
+    route,
+    corridor: `${origin} → ${destination}`,
+    generatedAt: new Date().toISOString()
+  };
+}
+
+function sanitizeFilename(value) {
+  return (value || "destination")
+    .replace(/[^a-zA-Z0-9-_ ]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .toLowerCase();
+}
+
+function getStoredTripReports() {
+  try {
+    const raw = localStorage.getItem("greenroute_trip_reports");
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function setStoredTripReports(reports) {
+  localStorage.setItem("greenroute_trip_reports", JSON.stringify(reports.slice(0, 10)));
+}
+
+function renderDestinationReportList() {
+  const list = document.getElementById("destinationReportList");
+  if (!list) return;
+
+  const reports = getStoredTripReports();
+  if (!reports.length) {
+    const snapshot = getCurrentConfigSnapshot();
+    list.innerHTML = `
+      <div style="padding:8px 10px; border:1px solid var(--border); border-radius:8px; background: rgba(0,0,0,0.02); color:var(--muted);">
+        No completed destination report yet. After a trip reaches its destination, a downloadable ESG report will appear here.
+      </div>
+      <button class="btn-dash btn-dash-secondary" style="width:100%;" onclick="exportCurrentDestinationReport(${JSON.stringify(snapshot).replace(/"/g, '&quot;')})">📥 Generate Current Destination Report</button>
+    `;
+    return;
+  }
+
+  list.innerHTML = reports.map(report => `
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background: rgba(0,0,0,0.02);">
+      <div>
+        <div style="font-weight:700;">${report.destination || report.corridor || "Destination"}</div>
+        <div style="color:var(--muted);">${report.vehicleType || "Heavy Freight Truck"}</div>
+      </div>
+      <button class="btn-dash btn-dash-secondary" onclick="exportStoredReport(${JSON.stringify(report).replace(/"/g, '&quot;')})">📦 Download</button>
+    </div>
+  `).join("");
+}
+
+function buildDestinationReportHtml(report) {
+  const companyName = report.companyName || "GreenLogistics India Pvt Ltd";
+  const fleetId = report.fleetId || "IN-FLEET-8842";
+  const driverName = report.driverName || "Ramesh Kumar";
+  const plateNo = report.plateNo || "TS 09 EA 4521";
+  const vehicleType = report.vehicleType || "Heavy Freight Truck";
+  const standard = report.standard || "BS-VI / Euro VI";
+  const loadFactor = report.route?.load_factor || report.loadFactor || "1.18x";
+  const payload = report.payloadValue || report.payload || "12000";
+  const corridor = report.corridor || `${report.origin || "Hyderabad"} → ${report.destination || "Bengaluru"}`;
+  const distance = report.route?.distance_km || report.distance_km || "0";
+  const fuel = report.route?.fuel || report.fuel || "0";
+  const fuelUnit = report.route?.fuel_unit || report.fuelUnit || "L";
+  const cost = report.route?.cost_inr || report.cost_inr || 0;
+  const co2 = report.route?.co2_kg || report.co2_emitted_kg || "0";
+  const generatedAt = report.generatedAt ? new Date(report.generatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : new Date().toLocaleString('en-IN');
+
+  return `<!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ESG Report - ${corridor}</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 32px; color: #111827; background: #f8fafc; }
+      .card { max-width: 820px; margin: 0 auto; background: white; border: 1px solid #d1fae5; border-radius: 14px; padding: 24px; box-shadow: 0 4px 18px rgba(0,0,0,0.06); }
+      h1 { margin: 0 0 12px; color: #166534; font-size: 28px; }
+      .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0; }
+      .box { background: #f0fdf4; border: 1px solid #d1fae5; border-radius: 10px; padding: 12px; }
+      .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.08em; }
+      .value { font-size: 16px; font-weight: 700; margin-top: 6px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+      th, td { border: 1px solid #e5e7eb; padding: 10px 12px; text-align: left; }
+      th { background: #ecfdf5; }
+      .badge { display: inline-block; background: #dcfce7; color: #166534; font-weight: 700; border-radius: 999px; padding: 6px 10px; }
+      .footer { margin-top: 20px; font-size: 12px; color: #6b7280; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="badge">🏆 ESG Compliance Certificate</div>
+      <h1>${companyName}</h1>
+      <p>Destination Reach Report for <strong>${corridor}</strong></p>
+
+      <div class="meta">
+        <div class="box">
+          <div class="label">Fleet</div>
+          <div class="value">${fleetId}</div>
+        </div>
+        <div class="box">
+          <div class="label">Driver</div>
+          <div class="value">${driverName}</div>
+        </div>
+        <div class="box">
+          <div class="label">Vehicle Plate</div>
+          <div class="value">${plateNo}</div>
+        </div>
+        <div class="box">
+          <div class="label">Generated</div>
+          <div class="value">${generatedAt}</div>
+        </div>
+      </div>
+
+      <table>
+        <tr><th>Parameter</th><th>Value</th></tr>
+        <tr><td>Destination</td><td>${corridor}</td></tr>
+        <tr><td>Vehicle Type</td><td>${vehicleType}</td></tr>
+        <tr><td>Emission Standard</td><td>${standard}</td></tr>
+        <tr><td>Load Factor</td><td>${loadFactor} (${payload} kg Payload)</td></tr>
+        <tr><td>Distance Travelled</td><td>${distance} km</td></tr>
+        <tr><td>Fuel Consumed</td><td>${fuel} ${fuelUnit}</td></tr>
+        <tr><td>Trip Cost</td><td>₹${Number(cost || 0).toLocaleString('en-IN')}</td></tr>
+        <tr><td>CO₂ Emitted</td><td>${co2} kg</td></tr>
+        <tr><td>Dispatch Status</td><td>Destination Reached</td></tr>
+      </table>
+
+      <div class="footer">
+        This report confirms the ESG-compliant dispatch record for the completed route between ${report.origin || "Hyderabad"} and ${report.destination || "Bengaluru"}. <br>
+        Certified carbon-conscious freight dispatch under the current fleet configuration.
+      </div>
+    </div>
+  </body>
+  </html>`;
+}
+
+function exportCurrentDestinationReport() {
+  const snapshot = getCurrentConfigSnapshot();
+  const route = snapshot.route || currentRoutes[0];
+  if (!route) {
+    showCustomAlert("No route data available to export. Please reach a destination first.", "Report unavailable", "warning");
+    return;
+  }
+
+  const report = {
+    ...snapshot,
+    route,
+    origin: snapshot.origin,
+    destination: snapshot.destination,
+    vehicleType: snapshot.vehicleType,
+    fuelUnit: route.fuel_unit || "L",
+    fuel: route.fuel,
+    cost_inr: route.cost_inr,
+    co2_emitted_kg: route.co2_kg,
+    distance_km: route.distance_km,
+    loadFactor: route.load_factor,
+    payload: snapshot.payloadValue,
+    standard: snapshot.standard,
+    companyName: snapshot.companyName,
+    fleetId: snapshot.fleetId,
+    driverName: snapshot.driverName,
+    plateNo: snapshot.plateNo,
+    corridor: `${snapshot.origin} → ${snapshot.destination}`,
+    generatedAt: new Date().toISOString()
+  };
+
+  exportStoredReport(report);
+}
+
+function exportStoredReport(report) {
+  const html = buildDestinationReportHtml(report);
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${sanitizeFilename(report.destination || report.corridor || "destination")}-esg-report.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+ showCustomAlert("The ESG destination report has been downloaded successfully.", "Export complete", "success");
+}
+
+function saveTripDestinationReport(report) {
+  const reports = getStoredTripReports();
+  const corridor = report.corridor || `${report.origin} → ${report.destination}`;
+  const nextReports = reports.filter(entry => (entry.corridor || `${entry.origin} → ${entry.destination}`) !== corridor);
+  nextReports.unshift(report);
+  setStoredTripReports(nextReports);
+  renderDestinationReportList();
 }
 
 function renderFleetTable(vehicles) {
@@ -1056,6 +1331,27 @@ async function recordCompletedTrip(route) {
         fuel_unit: route.fuel_unit || "L",
         co2_saved_kg: 86.3
       })
+    });
+
+    saveTripDestinationReport({
+      origin,
+      destination,
+      corridor: `${origin} → ${destination}`,
+      companyName: document.getElementById("dispCompName")?.textContent || "GreenLogistics India Pvt Ltd",
+      fleetId: document.getElementById("cfgFleetId")?.value || "IN-FLEET-8842",
+      driverName,
+      plateNo,
+      vehicleType: vehicle_type,
+      fuelType: document.getElementById("fuel_type")?.value || "diesel",
+      standard: document.getElementById("euro_class")?.value || "BS-VI / Euro VI",
+      payloadValue: document.getElementById("payload")?.value || "12000",
+      route,
+      fuel: route.fuel,
+      fuelUnit: route.fuel_unit || "L",
+      cost_inr: route.cost_inr,
+      co2_emitted_kg: route.co2_kg,
+      distance_km: route.distance_km,
+      generatedAt: new Date().toISOString()
     });
 
     fetchMetrics();
@@ -1172,12 +1468,59 @@ function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+function showCustomAlert(message, title = "Notification", type = "info") {
+  const backdrop = document.getElementById("customModalBackdrop");
+  const titleEl = document.getElementById("customModalTitle");
+  const bodyEl = document.getElementById("customModalBody");
+  const iconEl = document.getElementById("customModalIcon");
+  const primaryBtn = document.getElementById("customModalPrimaryBtn");
+  const secondaryBtn = document.getElementById("customModalSecondaryBtn");
+
+  const iconMap = {
+    success: "✅",
+    error: "❌",
+    warning: "⚠️",
+    info: "ℹ️"
+  };
+
+  titleEl.textContent = title;
+  bodyEl.textContent = message;
+  iconEl.textContent = iconMap[type] || iconMap.info;
+  iconEl.style.background = type === "success" ? "rgba(34,197,94,0.12)" : type === "error" ? "rgba(239,68,68,0.12)" : type === "warning" ? "rgba(245,158,11,0.12)" : "rgba(37,99,235,0.12)";
+  iconEl.style.color = type === "success" ? "#16a34a" : type === "error" ? "#ef4444" : type === "warning" ? "#d97706" : "#2563eb";
+
+  primaryBtn.textContent = "OK";
+  primaryBtn.style.display = "inline-block";
+  secondaryBtn.style.display = "none";
+  secondaryBtn.onclick = null;
+  primaryBtn.onclick = () => {
+    backdrop.classList.remove("active");
+  };
+
+  backdrop.classList.add("active");
+}
+
+function closeCustomModal(event) {
+  const backdrop = document.getElementById("customModalBackdrop");
+  if (event && event.target !== backdrop && event.target !== document.getElementById("customModalClose")) return;
+  backdrop.classList.remove("active");
+}
+
+document.getElementById("customModalClose").addEventListener("click", () => {
+  document.getElementById("customModalBackdrop").classList.remove("active");
+});
+
+document.getElementById("customModalPrimaryBtn").addEventListener("click", () => {
+  document.getElementById("customModalBackdrop").classList.remove("active");
+});
+
 // Auto-initialize on startup
 window.addEventListener("DOMContentLoaded", () => {
   fetchDbStatus();
   fetchCompanyConfig();
   fetchFleetVehicles();
   fetchMetrics();
+  renderDestinationReportList();
   setupAutocomplete("origin", "originDropdown");
   setupAutocomplete("destination", "destDropdown");
 });
@@ -1195,9 +1538,9 @@ async function optimizeRoute() {
   const gvw         = parseFloat(document.getElementById("gvw").value) || 25000;
   const fuel_type   = document.getElementById("fuel_type").value;
   const euro_class  = document.getElementById("euro_class").value;
-
+  
   if (!origin || !destination) {
-    alert("Please enter both Origin and Destination.");
+    showCustomAlert("Please enter both Origin and Destination.", "Missing route details", "warning");
     return;
   }
 
@@ -1233,7 +1576,7 @@ async function optimizeRoute() {
     setStatus(`${data.origin.display} → ${data.destination.display} · ${data.routes.length} routes calculated`);
 
   } catch (e) {
-    alert("Error: " + e.message);
+    showCustomAlert("Error: " + e.message, "Route calculation failed", "error");
     setStatus("Error: " + e.message);
   } finally {
     setLoading(false);
@@ -1465,7 +1808,7 @@ function startJourneySimulation(e, idx) {
       recordCompletedTrip(route);
       setTimeout(() => {
         hud.classList.remove("active");
-        alert("🎉 Destination Reached! Trip Logged to Database & Metrics Updated.");
+        showCustomAlert("Destination reached successfully. The trip has been logged and the fleet metrics were updated.", "Trip completed", "success");
         switchView("summary");
       }, 500);
     }
@@ -1477,6 +1820,8 @@ function populateSummaryDashboard(route, fullData) {
   if (!route) return;
   const greenest = currentRoutes.find(r => r.type === "greenest") || route;
   const optimal  = currentRoutes.find(r => r.type === "optimal")  || route;
+  const origin = document.getElementById("origin")?.value.trim() || "Hyderabad";
+  const destination = document.getElementById("destination")?.value.trim() || "Bengaluru";
 
   // Update comparative analysis bars
   if (document.getElementById("bar1Val")) {
@@ -1487,6 +1832,9 @@ function populateSummaryDashboard(route, fullData) {
   }
 
   // Update ESG Certificate details for latest route
+  if (document.getElementById("certDestination")) {
+    document.getElementById("certDestination").textContent = `${origin} → ${destination}`;
+  }
   if (document.getElementById("certVehicle")) {
     document.getElementById("certVehicle").textContent = document.getElementById("vehicle_type").value;
   }
@@ -1496,6 +1844,13 @@ function populateSummaryDashboard(route, fullData) {
   if (document.getElementById("certLoad")) {
     document.getElementById("certLoad").textContent = `${route.load_factor}x (${document.getElementById("payload").value} kg Payload)`;
   }
+  if (document.getElementById("certFleet")) {
+    const companyName = document.getElementById("dispCompName")?.textContent || "GreenLogistics India Pvt Ltd";
+    const fleetId = document.getElementById("cfgFleetId")?.value || "IN-FLEET-8842";
+    document.getElementById("certFleet").textContent = `${companyName} · ${fleetId}`;
+  }
+
+  renderDestinationReportList();
 
   // Ensure 4 Hero Cards show persistent cumulative fleet totals
   fetchMetrics();
