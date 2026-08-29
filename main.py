@@ -73,11 +73,12 @@ class TripLogPayload(BaseModel):
     fuel_type: str
     euro_class: str
     distance_km: float
-    duration_s: int
+    duration_s: float
     fuel_consumed: float
     fuel_unit: str
     co2_emitted_kg: float
     trip_cost_inr: float
+
 
 
 
