@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GreenRoute AI — Freight Optimization & Fleet Admin Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"/>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+/* ── Reset & CSS Variables ─────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Emerald Light (Default Theme) */
+  --bg:          #f0fdf4;
+  --panel:       #ffffff;
+  --border:      #d1fae5;
+  --text:        #111827;
+  --muted:       #6b7280;
+  --green:       #16a34a;
+  --blue:        #2563eb;
+  --gray:        #4b5563;
+  --card-bg:     #ffffff;
+  --input-bg:    #f9fafb;
+  --input-border:#e5e7eb;
+  --shadow:      0 4px 24px rgba(0,0,0,0.08);
+  --topbar-bg:   #ffffff;
+}
+
+/* Midnight Dark Theme */
+body.theme-midnight {
+  --bg:          #0f172a;
+  --panel:       #1e293b;
+  --border:      #334155;
+  --text:        #f8fafc;
+  --muted:       #94a3b8;
+  --green:       #22c55e;
+  --blue:        #3b82f6;
+  --gray:        #94a3b8;
+  --card-bg:     #1e293b;
+  --input-bg:    #0f172a;
+  --input-border:#334155;
+  --shadow:      0 4px 24px rgba(0,0,0,0.4);
+  --topbar-bg:   #0f172a;
+}
+
+/* Cyber Green Theme */
+body.theme-cyber {
+  --bg:          #05150d;
+  --panel:       #0c2517;
+  --border:      #164e2b;
+  --text:        #e6fff0;
+  --muted:       #52b77c;
+  --green:       #10b981;
+  --blue:        #06b6d4;
+  --gray:        #52b77c;
+  --card-bg:     #0c2517;
+  --input-bg:    #05150d;
+  --input-border:#164e2b;
+  --shadow:      0 4px 24px rgba(16,185,129,0.15);
+  --topbar-bg:   #0c2517;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* ── Top Bar ──────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 24px; background: var(--topbar-bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  z-index: 30;
+}
+.brand-group { display: flex; align-items: center; gap: 12px; }
+.logo {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 700; font-size: 18px; color: var(--green);
+}
+.logo-icon {
+  width: 32px; height: 32px; background: var(--green);
+  border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; color: #fff; font-size: 18px;
+}
+.tagline { font-size: 12px; color: var(--muted); }
+
+/* Navigation Page Tabs */
+.nav-tabs {
+  display: flex; gap: 6px; background: rgba(0,0,0,0.04);
+  padding: 4px; border-radius: 10px;
+}
+.nav-tab {
+  padding: 7px 14px; border: none; border-radius: 7px;
+  font-size: 13px; font-weight: 600; font-family: inherit;
+  cursor: pointer; background: transparent; color: var(--muted);
+  transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { background: var(--panel); color: var(--green); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+.right-controls { display: flex; align-items: center; gap: 10px; }
+
+/* Theme Selector */
+.theme-select {
+  padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel); color: var(--text); font-size: 12px;
+  font-weight: 500; font-family: inherit; cursor: pointer; outline: none;
+}
+
+/* Admin Button */
+.btn-admin {
+  padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--green); color: #fff; font-size: 12px; font-weight: 600;
+  font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: all 0.2s;
+}
+.btn-admin:hover { filter: brightness(0.9); }
+
+/* ── Main Layout ──────────────────────────────────── */
+.main { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+/* ── Views ────────────────────────────────────────── */
+.view-container { width: 100%; height: 100%; display: none; }
+.view-container.active { display: flex; }
+
+/* ── Left Sidebar (Planner View) ─────────────────── */
+.sidebar {
+  width: 390px; min-width: 350px;
+  background: var(--panel); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0;
+}
+.sidebar-inner { padding: 20px; flex: 1; }
+.section-title {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 10px; margin-top: 16px;
+}
+.section-title:first-child { margin-top: 0; }
+
+/* Form Elements */
+.input-group { margin-bottom: 12px; }
+.input-group label {
+  display: block; font-size: 12px; font-weight: 500;
+  color: var(--muted); margin-bottom: 4px;
+}
+.input-group input, .input-group select {
+  width: 100%; padding: 9px 12px;
+  border: 1.5px solid var(--input-border); border-radius: 8px;
+  font-size: 14px; font-family: inherit;
+  background: var(--input-bg); color: var(--text);
+  transition: border-color 0.2s; outline: none;
+}
+.input-group input:focus, .input-group select:focus {
+  border-color: var(--green); background: var(--panel);
+}
+.input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Optimize Button */
+.btn-optimize {
+  width: 100%; padding: 13px;
+  background: var(--green); color: #fff;
+  border: none; border-radius: 10px; cursor: pointer;
+  font-size: 15px; font-weight: 600; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background 0.2s, transform 0.1s; margin-top: 16px;
+}
+.btn-optimize:hover:not(:disabled) { filter: brightness(0.9); }
+.btn-optimize:active:not(:disabled) { transform: scale(0.98); }
+.btn-optimize:disabled { opacity: 0.65; cursor: not-allowed; }
+
+.spinner {
+  width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Route Cards */
+.routes-section { padding: 16px 20px 20px; flex-shrink: 0; }
+.route-card {
+  border: 2px solid var(--input-border);
+  border-radius: 12px; padding: 14px;
+  margin-bottom: 10px; cursor: pointer;
+  transition: all 0.2s; background: var(--card-bg);
+  position: relative;
+}
+.route-card:hover { border-color: var(--muted); box-shadow: var(--shadow); }
+.route-card.selected { box-shadow: var(--shadow); }
+.route-card.selected.green { border-color: var(--green); }
+.route-card.selected.blue  { border-color: var(--blue); }
+.route-card.selected.gray  { border-color: var(--gray); }
+
+.card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.card-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.card-label { font-weight: 700; font-size: 14px; }
+.card-reason { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+.card-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.stat-val { font-size: 15px; font-weight: 700; }
+.stat-key { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.selected-badge {
+  position: absolute; top: 10px; right: 10px;
+  background: var(--green); color: #fff;
+  font-size: 9px; font-weight: 700; padding: 2px 7px;
+  border-radius: 20px; letter-spacing: 0.05em;
+}
+.selected-badge.blue-badge { background: var(--blue); }
+.selected-badge.gray-badge { background: var(--gray); }
+
+/* Card Detail Panel */
+.detail-panel {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border); display: none;
+}
+.route-card.selected .detail-panel { display: block; }
+.detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.detail-item {
+  background: rgba(0,0,0,0.03); border-radius: 8px; padding: 8px; text-align: center;
+}
+.detail-val { font-size: 14px; font-weight: 700; }
+.detail-key { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+.why-box {
+  margin-top: 10px; background: rgba(0,0,0,0.03);
+  border-radius: 8px; padding: 9px 11px;
+  font-size: 12px; color: var(--muted); line-height: 1.5;
+}
+.savings-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #dcfce7; color: #16a34a; font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 20px; margin-top: 8px;
+}
+
+.btn-start-sim {
+  width: 100%; padding: 9px; background: var(--green); color: #fff;
+  border: none; border-radius: 8px; cursor: pointer; font-size: 13px;
+  font-weight: 600; font-family: inherit; margin-top: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.2s;
+}
+.btn-start-sim:hover { filter: brightness(0.9); }
+
+/* ── Map Container ────────────────────────────────── */
+.map-container { flex: 1; position: relative; overflow: hidden; }
+#map { width: 100%; height: 100%; }
+
+.map-controls { position: absolute; top: 14px; right: 14px; display: flex; gap: 6px; z-index: 10; }
+.map-btn {
+  padding: 7px 14px; background: var(--panel);
+  border: 1.5px solid var(--border); border-radius: 20px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; font-family: inherit; color: var(--text);
+}
+.map-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+
+.map-legend {
+  position: absolute; bottom: 30px; left: 14px; z-index: 10;
+  background: var(--panel); border-radius: 10px;
+  padding: 10px 14px; box-shadow: var(--shadow); font-size: 12px; border: 1px solid var(--border);
+}
+.legend-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.legend-line { width: 28px; height: 4px; border-radius: 2px; }
+
+.status-bar {
+  position: absolute; bottom: 30px; right: 14px; z-index: 10;
+  background: var(--panel); border-radius: 8px; border: 1px solid var(--border);
+  padding: 6px 12px; font-size: 11px; color: var(--muted); box-shadow: var(--shadow);
+}
+
+.map-overlay {
+  position: absolute; inset: 0; z-index: 20;
+  background: rgba(0,0,0,0.4); display: none;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px; backdrop-filter: blur(4px);
+}
+.map-overlay.active { display: flex; }
+.overlay-spinner {
+  width: 48px; height: 48px; border: 4px solid var(--border);
+  border-top-color: var(--green); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.overlay-text { font-size: 15px; font-weight: 600; color: #fff; }
+
+.empty-state { padding: 24px 20px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.empty-icon { font-size: 36px; margin-bottom: 8px; }
+
+/* ── Live Journey Simulation HUD ──────────────────── */
+.sim-hud {
+  position: absolute; top: 14px; left: 14px; right: 14px; z-index: 15;
+  background: var(--panel); border-radius: 14px; border: 1px solid var(--border);
+  padding: 14px 20px; box-shadow: var(--shadow); display: none;
+}
+.sim-hud.active { display: block; }
+.sim-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.sim-title { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.sim-speed-tag { font-size: 12px; background: rgba(0,0,0,0.06); padding: 3px 8px; border-radius: 12px; font-weight: 600; }
+.sim-progress-bar-bg { width: 100%; height: 8px; background: var(--input-bg); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+.sim-progress-fill { width: 0%; height: 100%; background: var(--green); transition: width 0.1s linear; }
+.sim-metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center; }
+.sim-metric-val { font-size: 16px; font-weight: 700; color: var(--green); }
+.sim-metric-key { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+
+/* ── PAGE 2: Post-Trip Summary Dashboard ───────────── */
+.dashboard-view {
+  flex: 1; padding: 24px 40px; overflow-y: auto;
+  background: var(--bg); display: flex; flex-direction: column; gap: 20px;
+}
+.dash-header { display: flex; align-items: center; justify-content: space-between; }
+.dash-company-box { display: flex; align-items: center; gap: 14px; }
+.company-badge { width: 44px; height: 44px; background: var(--green); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.dash-title { font-size: 22px; font-weight: 700; color: var(--text); }
+.dash-subtitle { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.badge-certified {
+  background: #dcfce7; color: #16a34a; padding: 6px 14px; border-radius: 20px;
+  font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;
+}
+
+.metrics-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.metric-card {
+  background: var(--panel); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 18px; box-shadow: var(--shadow);
+}
+.metric-card-icon { font-size: 24px; margin-bottom: 8px; }
+.metric-card-val { font-size: 24px; font-weight: 700; color: var(--text); }
+.metric-card-lbl { font-size: 12px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+.metric-card-sub { font-size: 12px; color: var(--green); font-weight: 600; margin-top: 8px; }
+
+.charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.chart-card {
+  background: var(--panel); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 20px; box-shadow: var(--shadow);
+}
+.chart-card-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+
+.bar-cmp-row { margin-bottom: 14px; }
+.bar-cmp-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.bar-cmp-bg { width: 100%; height: 12px; background: var(--input-bg); border-radius: 6px; overflow: hidden; }
+.bar-cmp-fill { height: 100%; border-radius: 6px; }
+
+/* Fleet Tracking Table */
+.fleet-table-card {
+  background: var(--panel); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 20px; box-shadow: var(--shadow);
+}
+.fleet-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+.fleet-table th { text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.fleet-table td { padding: 12px; border-bottom: 1px solid var(--border); }
+.status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.status-active { background: #dcfce7; color: #16a34a; }
+.status-transit { background: #dbeafe; color: #2563eb; }
+
+/* Modal Backdrop & Admin Modal */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100;
+  display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+}
+.modal-backdrop.active { display: flex; }
+.admin-modal {
+  background: var(--panel); border: 1.5px solid var(--border); border-radius: 16px;
+  width: 480px; max-width: 90%; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.modal-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.modal-close { font-size: 20px; cursor: pointer; background: none; border: none; color: var(--muted); }
+
+.dash-actions { display: flex; gap: 12px; margin-top: 10px; }
+.btn-dash {
+  padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  font-family: inherit; cursor: pointer; border: none; transition: all 0.2s;
+}
+.btn-dash-primary { background: var(--green); color: #fff; }
+.btn-dash-secondary { background: var(--panel); border: 1px solid var(--border); color: var(--text); }
+
+/* Scrollbars */
+.sidebar::-webkit-scrollbar, .dashboard-view::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar-thumb, .dashboard-view::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+</style>
+</head>
+<body>
+
+<!-- ═══ TOP BAR ═══════════════════════════════════════════════ -->
+<header class="topbar">
+  <div class="brand-group">
+    <div class="logo">
+      <div class="logo-icon">🌿</div>
+      GreenRoute AI
+    </div>
+    <span class="tagline">Fleet Route Optimization & Admin Portal</span>
+  </div>
+
+  <!-- Page Navigation Tabs -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tabPlanner" onclick="switchView('planner')">📍 Route Planner</button>
+    <button class="nav-tab" id="tabSummary" onclick="switchView('summary')">📊 Fleet Dashboard</button>
+  </div>
+
+  <!-- Right Controls -->
+  <div class="right-controls">
+    <button class="btn-admin" onclick="openAdminModal()">⚙️ Admin Config</button>
+
+    <select class="theme-select" id="themeSelect" onchange="changeTheme(this.value)">
+      <option value="emerald">🌿 Emerald Light</option>
+      <option value="midnight">🌙 Midnight Dark</option>
+      <option value="cyber">⚡ Cyber Fleet</option>
+    </select>
+  </div>
+</header>
+
+<!-- ═══ MAIN CONTAINER ════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- ─── PAGE 1: ROUTE PLANNER VIEW ────────────────────────── -->
+  <div class="view-container active" id="viewPlanner">
+
+    <!-- Left Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+        <p class="section-title">📍 Route Locations</p>
+        <div class="input-group">
+          <label>Origin</label>
+          <input type="text" id="origin" placeholder="e.g. Hyderabad" value="Hyderabad"/>
+        </div>
+        <div class="input-group">
+          <label>Destination</label>
+          <input type="text" id="destination" placeholder="e.g. Bengaluru" value="Bengaluru"/>
+        </div>
+
+        <p class="section-title">🚛 Truck Parameters</p>
+        <div class="input-group">
+          <label>Vehicle Type</label>
+          <select id="vehicle_type">
+            <option value="Heavy Freight Truck">Heavy Freight Truck (HGV)</option>
+            <option value="Medium Truck">Medium Truck</option>
+            <option value="Light Van">Light Van</option>
+          </select>
+        </div>
+        <div class="input-row">
+          <div class="input-group">
+            <label>Payload (kg)</label>
+            <input type="number" id="payload" value="12000" min="0" max="40000" step="500"/>
+          </div>
+          <div class="input-group">
+            <label>Gross Weight (kg)</label>
+            <input type="number" id="gvw" value="25000" min="1000" max="60000" step="500"/>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-group">
+            <label>Fuel Type</label>
+            <select id="fuel_type">
+              <option value="diesel">Diesel</option>
+              <option value="petrol">Petrol</option>
+              <option value="cng">CNG</option>
+              <option value="electric">Electric</option>
+              <option value="hybrid">Hybrid</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Emission Standard</label>
+            <select id="euro_class">
+              <option value="BS-VI / Euro VI" selected>BS-VI / Euro VI</option>
+              <option value="BS-V / Euro V">BS-V / Euro V</option>
+              <option value="BS-IV / Euro IV">BS-IV / Euro IV</option>
+              <option value="BS-III / Euro III">BS-III / Euro III</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn-optimize" id="optimizeBtn" onclick="optimizeRoute()">
+          <span id="btnIcon">🚀</span>
+          <span id="btnText">Optimize Route</span>
+        </button>
+      </div>
+
+      <!-- Route Cards -->
+      <div class="routes-section" id="routesSection">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">🗺️</div>
+          Enter route details above and click<br/><strong>Optimize Route</strong> to see recommendations
+        </div>
+        <div id="routeCards"></div>
+      </div>
+    </aside>
+
+    <!-- Map Area -->
+    <div class="map-container">
+      <div id="map"></div>
+
+      <!-- Map Mode Buttons -->
+      <div class="map-controls">
+        <button class="map-btn active" onclick="setMapMode('street', this)">🗺 Street</button>
+        <button class="map-btn" onclick="setMapMode('traffic', this)">🚦 Traffic</button>
+        <button class="map-btn" onclick="setMapMode('satellite', this)">🛰️ Satellite</button>
+      </div>
+
+      <!-- Live Journey Simulation HUD Overlay -->
+      <div class="sim-hud" id="simHud">
+        <div class="sim-header">
+          <div class="sim-title">🚚 Live Delivery Simulation in Progress</div>
+          <div class="sim-speed-tag" id="simSpeedTag">⚡ Speed: 68 km/h</div>
+        </div>
+        <div class="sim-progress-bar-bg">
+          <div class="sim-progress-fill" id="simProgressFill"></div>
+        </div>
+        <div class="sim-metrics-grid">
+          <div><div class="sim-metric-val" id="simDistanceVal">0 km</div><div class="sim-metric-key">Covered</div></div>
+          <div><div class="sim-metric-val" id="simRemVal">562 km</div><div class="sim-metric-key">Remaining</div></div>
+          <div><div class="sim-metric-val" id="simFuelVal">0 L</div><div class="sim-metric-key">Fuel Consumed</div></div>
+          <div><div class="sim-metric-val" id="simEtaVal">7h 33m</div><div class="sim-metric-key">Simulated ETA</div></div>
+        </div>
+      </div>
+
+      <!-- Map Legend -->
+      <div class="map-legend" id="mapLegend" style="display:none">
+        <div class="legend-item"><div class="legend-line" style="background:#16a34a"></div>🌱 Greenest</div>
+        <div class="legend-item"><div class="legend-line" style="background:#2563eb"></div>⭐ Optimal</div>
+        <div class="legend-item"><div class="legend-line" style="background:#6b7280"></div>⚡ Fastest</div>
+      </div>
+
+      <!-- Status Bar -->
+      <div class="status-bar" id="statusBar">OSRM · OpenStreetMap · Ready</div>
+
+      <!-- Loading Overlay -->
+      <div class="map-overlay" id="mapOverlay">
+        <div class="overlay-spinner"></div>
+        <div class="overlay-text" id="overlayText">Analyzing routes…</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─── PAGE 2: POST-TRIP & FLEET DASHBOARD ───────────────── -->
+  <div class="dashboard-view" id="viewSummary">
+    <div class="dash-header">
+      <div class="dash-company-box">
+        <div class="company-badge">🏢</div>
+        <div>
+          <div class="dash-title" id="dispCompName">GreenLogistics India Pvt Ltd</div>
+          <div class="dash-subtitle" id="dispFleetDetails">Fleet ID: IN-FLEET-8842 · Driver: Ramesh Kumar (TS 09 EA 4521)</div>
+        </div>
+      </div>
+      <div class="badge-certified">🏆 A+ Eco-Logistics Certified</div>
+    </div>
+
+    <!-- Hero Metric Cards (4 Grid) -->
+    <div class="metrics-grid-4">
+      <div class="metric-card">
+        <div class="metric-card-icon">⛽</div>
+        <div class="metric-card-val" id="sumFuelVal">185.7 L</div>
+        <div class="metric-card-lbl">Total Fuel Consumed</div>
+        <div class="metric-card-sub" id="sumFuelSaved">🌱 24.3 L Saved vs Unoptimized</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card-icon">🌍</div>
+        <div class="metric-card-val" id="sumCo2Val">497.6 kg</div>
+        <div class="metric-card-lbl">Carbon Emissions</div>
+        <div class="metric-card-sub" id="sumCo2Saved">🌱 86.3 kg CO₂ Avoided</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card-icon">🛣️</div>
+        <div class="metric-card-val" id="sumDistVal">562.0 km</div>
+        <div class="metric-card-lbl">Distance Travelled</div>
+        <div class="metric-card-sub">📍 100% Highway Coverage</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card-icon">💰</div>
+        <div class="metric-card-val" id="sumCostVal">₹17,084</div>
+        <div class="metric-card-lbl">Total Trip Cost</div>
+        <div class="metric-card-sub" id="sumCostSaved">⚡ ₹2,235 Saved in Fuel</div>
+      </div>
+    </div>
+
+    <!-- Comparative Analysis Charts & ESG Report -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-card-title">📊 Route Alternatives Comparison (Emissions & Cost)</div>
+
+        <div class="bar-cmp-row">
+          <div class="bar-cmp-label">
+            <span>🌱 Greenest Route (Selected)</span>
+            <span id="bar1Val">497.6 kg CO₂ · ₹17,084</span>
+          </div>
+          <div class="bar-cmp-bg"><div class="bar-cmp-fill" id="bar1Fill" style="width: 75%; background: var(--green);"></div></div>
+        </div>
+
+        <div class="bar-cmp-row">
+          <div class="bar-cmp-label">
+            <span>⭐ Optimal Route</span>
+            <span id="bar2Val">542.4 kg CO₂ · ₹18,620</span>
+          </div>
+          <div class="bar-cmp-bg"><div class="bar-cmp-fill" id="bar2Fill" style="width: 85%; background: var(--blue);"></div></div>
+        </div>
+
+        <div class="bar-cmp-row">
+          <div class="bar-cmp-label">
+            <span>⚡ Fastest Route (Unoptimized)</span>
+            <span id="bar3Val">583.9 kg CO₂ · ₹20,045</span>
+          </div>
+          <div class="bar-cmp-bg"><div class="bar-cmp-fill" id="bar3Fill" style="width: 100%; background: var(--gray);"></div></div>
+        </div>
+      </div>
+
+      <!-- ESG Compliance Certificate Card -->
+      <div class="chart-card">
+        <div class="chart-card-title">📜 ESG Certificate Summary</div>
+        <p style="font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 14px;">
+          Certified carbon-conscious freight dispatch.
+        </p>
+        <div style="background: rgba(0,0,0,0.03); padding: 12px; border-radius: 8px; font-size: 12px; margin-bottom: 14px;">
+          <div><strong>Vehicle:</strong> <span id="certVehicle">Heavy Freight Truck</span></div>
+          <div><strong>Standard:</strong> <span id="certStandard">BS-VI / Euro VI Diesel</span></div>
+          <div><strong>Load Factor:</strong> <span id="certLoad">1.18x (12,000 kg Payload)</span></div>
+        </div>
+        <div class="dash-actions">
+          <button class="btn-dash btn-dash-primary" onclick="alert('Exporting Official ESG Company Certificate PDF…')">📥 Export Report</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Registered Company Fleet Tracking Table -->
+    <div class="fleet-table-card">
+      <div class="chart-card-title">🚛 Company Fleet Live Monitoring</div>
+      <table class="fleet-table">
+        <thead>
+          <tr>
+            <th>Vehicle Plate</th>
+            <th>Assigned Driver</th>
+            <th>Type</th>
+            <th>Route Corridor</th>
+            <th>Status</th>
+            <th>Fuel Consumed</th>
+            <th>CO₂ Saved</th>
+          </tr>
+        </thead>
+        <tbody id="fleetTableBody">
+          <tr>
+            <td><strong id="tblPlate1">TS 09 EA 4521</strong></td>
+            <td id="tblDriver1">Ramesh Kumar</td>
+            <td>Heavy Freight Truck</td>
+            <td>Hyderabad → Bengaluru</td>
+            <td><span class="status-pill status-active">🟢 Destination Reached</span></td>
+            <td>185.7 L</td>
+            <td>🌱 86.3 kg</td>
+          </tr>
+          <tr>
+            <td><strong>AP 16 BD 9820</strong></td>
+            <td>Suresh Sharma</td>
+            <td>Medium Truck</td>
+            <td>Chennai → Vijayawada</td>
+            <td><span class="status-pill status-transit">🚚 In Transit</span></td>
+            <td>112.4 L</td>
+            <td>🌱 42.1 kg</td>
+          </tr>
+          <tr>
+            <td><strong>KA 01 MF 3312</strong></td>
+            <td>Venkatesh Rao</td>
+            <td>Electric Van</td>
+            <td>Bengaluru Local</td>
+            <td><span class="status-pill status-active">🟢 Destination Reached</span></td>
+            <td>95.0 kWh</td>
+            <td>🌱 110.5 kg</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="dash-actions">
+      <button class="btn-dash btn-dash-secondary" onclick="switchView('planner')">← Back to Route Planner</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ ADMIN CONFIG MODAL ════════════════════════════════════ -->
+<div class="modal-backdrop" id="adminModal">
+  <div class="admin-modal">
+    <div class="modal-header">
+      <div class="modal-title">⚙️ Fleet Admin Portal & Company Config</div>
+      <button class="modal-close" onclick="closeAdminModal()">✖</button>
+    </div>
+
+    <div class="input-group">
+      <label>Company Name</label>
+      <input type="text" id="cfgCompName" value="GreenLogistics India Pvt Ltd"/>
+    </div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>Fleet Registration ID</label>
+        <input type="text" id="cfgFleetId" value="IN-FLEET-8842"/>
+      </div>
+      <div class="input-group">
+        <label>Logistics Hub City</label>
+        <input type="text" id="cfgHubCity" value="Hyderabad Hub"/>
+      </div>
+    </div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>Assigned Driver</label>
+        <input type="text" id="cfgDriverName" value="Ramesh Kumar"/>
+      </div>
+      <div class="input-group">
+        <label>Vehicle Plate No.</label>
+        <input type="text" id="cfgPlateNo" value="TS 09 EA 4521"/>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+      <button class="btn-dash btn-dash-secondary" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn-dash btn-dash-primary" onclick="saveAdminConfig()">💾 Save Config</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// MAP SETUP
+// ════════════════════════════════════════════════════════════
+const STREET_STYLE = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+    },
+  },
+  layers: [{ id: "osm", type: "raster", source: "osm" }],
+};
+
+const TRAFFIC_STYLE = {
+  version: 8,
+  sources: {
+    carto: {
+      type: "raster",
+      tiles: ["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"],
+      tileSize: 256,
+      attribution: "© CARTO",
+    },
+  },
+  layers: [{ id: "carto", type: "raster", source: "carto" }],
+const SATELLITE_STYLE = {
+  version: 8,
+  sources: {
+    esri: {
+      type: "raster",
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      attribution: "© Esri, Maxar, Earthstar Geographics",
+    },
+  },
+  layers: [{ id: "esri", type: "raster", source: "esri" }],
+};
+
+const map = new maplibregl.Map({
+  container: "map",
+  style: STREET_STYLE,
+  center: [78.4867, 17.3850],
+  zoom: 5.5,
+});
+map.addControl(new maplibregl.NavigationControl(), "top-left");
+
+// ════════════════════════════════════════════════════════════
+// STATE & NAVIGATION
+// ════════════════════════════════════════════════════════════
+let currentRoutes = [];
+let selectedRouteIdx = -1;
+let markers = [];
+let currentMode = "street";
+let simTruckMarker = null;
+let simInterval = null;
+
+function switchView(viewName) {
+  document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".view-container, .dashboard-view").forEach(v => v.style.display = "none");
+
+  if (viewName === 'planner') {
+    document.getElementById("tabPlanner").classList.add("active");
+    document.getElementById("viewPlanner").style.display = "flex";
+    map.resize();
+  } else if (viewName === 'summary') {
+    document.getElementById("tabSummary").classList.add("active");
+    document.getElementById("viewSummary").style.display = "flex";
+  }
+}
+
+function changeTheme(themeName) {
+  document.body.className = "";
+  if (themeName === "midnight") document.body.classList.add("theme-midnight");
+  if (themeName === "cyber") document.body.classList.add("theme-cyber");
+}
+
+function setMapMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll(".map-btn").forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+
+  let style = STREET_STYLE;
+  if (mode === "traffic") style = TRAFFIC_STYLE;
+  if (mode === "satellite") style = SATELLITE_STYLE;
+
+  map.setStyle(style);
+  map.once("styledata", () => {
+    if (currentRoutes.length) renderRoutes(currentRoutes, selectedRouteIdx);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// ADMIN PORTAL MODAL
+// ════════════════════════════════════════════════════════════
+function openAdminModal() {
+  document.getElementById("adminModal").classList.add("active");
+}
+
+function closeAdminModal() {
+  document.getElementById("adminModal").classList.remove("active");
+}
+
+function saveAdminConfig() {
+  const compName  = document.getElementById("cfgCompName").value;
+  const fleetId   = document.getElementById("cfgFleetId").value;
+  const driverName= document.getElementById("cfgDriverName").value;
+  const plateNo   = document.getElementById("cfgPlateNo").value;
+
+  document.getElementById("dispCompName").textContent = compName;
+  document.getElementById("dispFleetDetails").textContent = `Fleet ID: ${fleetId} · Driver: ${driverName} (${plateNo})`;
+  document.getElementById("tblPlate1").textContent = plateNo;
+  document.getElementById("tblDriver1").textContent = driverName;
+
+  closeAdminModal();
+  alert("✅ Company Configuration & Vehicle Details Saved Successfully!");
+}
+
+// ════════════════════════════════════════════════════════════
+// ROUTE OPTIMIZATION
+// ════════════════════════════════════════════════════════════
+async function optimizeRoute() {
+  const origin      = document.getElementById("origin").value.trim();
+  const destination = document.getElementById("destination").value.trim();
+  const vehicle_type= document.getElementById("vehicle_type").value;
+  const payload_kg  = parseFloat(document.getElementById("payload").value) || 10000;
+  const gvw         = parseFloat(document.getElementById("gvw").value) || 25000;
+  const fuel_type   = document.getElementById("fuel_type").value;
+  const euro_class  = document.getElementById("euro_class").value;
+
+  if (!origin || !destination) {
+    alert("Please enter both Origin and Destination.");
+    return;
+  }
+
+  setLoading(true, "Finding locations…");
+  setStatus("Geocoding locations…");
+
+  try {
+    const resp = await fetch("/api/optimize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        origin,
+        destination,
+        truck: { vehicle_type, payload_kg, fuel_type, vehicle_weight_kg: gvw, euro_class },
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || "Route calculation failed.");
+    }
+
+    const data = await resp.json();
+    currentRoutes = data.routes;
+    selectedRouteIdx = 0;
+
+    renderRoutes(data.routes, 0);
+    placeMarkers(data.origin, data.destination);
+    fitMapToRoutes(data.routes);
+    renderRouteCards(data.routes, data);
+    populateSummaryDashboard(data.routes[0], data);
+
+    document.getElementById("mapLegend").style.display = "block";
+    setStatus(`${data.origin.display} → ${data.destination.display} · ${data.routes.length} routes calculated`);
+
+  } catch (e) {
+    alert("Error: " + e.message);
+    setStatus("Error: " + e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// DRAW ROUTES & MARKERS
+// ════════════════════════════════════════════════════════════
+function renderRoutes(routes, selectedIdx = -1) {
+  routes.forEach((_, i) => {
+    ["route-line-" + i, "route-outline-" + i].forEach(id => {
+      if (map.getLayer(id)) map.removeLayer(id);
+    });
+    if (map.getSource("route-" + i)) map.removeSource("route-" + i);
+  });
+
+  const drawOrder = [...Array(routes.length).keys()].filter(i => i !== selectedIdx);
+  if (selectedIdx >= 0) drawOrder.push(selectedIdx);
+
+  drawOrder.forEach(i => {
+    const r = routes[i];
+    const isSelected = i === selectedIdx;
+    const color = ROUTE_COLORS[r.type] || "#9ca3af";
+    const width = isSelected ? 7 : 3;
+    const opacity = isSelected ? 1 : (selectedIdx >= 0 ? 0.35 : 0.85);
+
+    if (!r.geometry || !r.geometry.coordinates) return;
+
+    const sourceId = "route-" + i;
+    map.addSource(sourceId, {
+      type: "geojson",
+      data: { type: "Feature", properties: {}, geometry: r.geometry },
+    });
+
+    map.addLayer({
+      id: "route-outline-" + i,
+      type: "line",
+      source: sourceId,
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": "#ffffff", "line-width": width + 3, "line-opacity": opacity * 0.5 },
+    });
+
+    map.addLayer({
+      id: "route-line-" + i,
+      type: "line",
+      source: sourceId,
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": color, "line-width": width, "line-opacity": opacity },
+    });
+  });
+}
+
+function placeMarkers(origin, dest) {
+  markers.forEach(m => m.remove());
+  markers = [];
+
+  const makeEl = (emoji, color) => {
+    const el = document.createElement("div");
+    el.style.cssText = `
+      width:36px; height:36px; background:${color};
+      border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+      border:3px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.3);
+      display:flex; align-items:center; justify-content:center;
+    `;
+    const inner = document.createElement("div");
+    inner.style.cssText = "transform:rotate(45deg); font-size:16px;";
+    inner.textContent = emoji;
+    el.appendChild(inner);
+    return el;
+  };
+
+  markers.push(
+    new maplibregl.Marker({ element: makeEl("🏁", "#16a34a"), anchor: "bottom" })
+      .setLngLat([origin.lon, origin.lat])
+      .addTo(map)
+  );
+  markers.push(
+    new maplibregl.Marker({ element: makeEl("📍", "#ef4444"), anchor: "bottom" })
+      .setLngLat([dest.lon, dest.lat])
+      .addTo(map)
+  );
+}
+
+function fitMapToRoutes(routes) {
+  let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+  routes.forEach(r => {
+    if (!r.geometry || !r.geometry.coordinates) return;
+    r.geometry.coordinates.forEach(([lon, lat]) => {
+      if (lon < minLon) minLon = lon;
+      if (lat < minLat) minLat = lat;
+      if (lon > maxLon) maxLon = lon;
+      if (lat > maxLat) maxLat = lat;
+    });
+  });
+  if (minLon !== Infinity) {
+    map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, duration: 1000 });
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// ROUTE CARDS & SELECTION
+// ════════════════════════════════════════════════════════════
+function renderRouteCards(routes, data) {
+  const container = document.getElementById("routeCards");
+  document.getElementById("emptyState").style.display = "none";
+  const greenest = routes.find(r => r.type === "greenest");
+
+  container.innerHTML = routes.map((r, i) => {
+    const colorClass = r.type === "greenest" ? "green" : r.type === "optimal" ? "blue" : "gray";
+    const dot_color  = ROUTE_COLORS[r.type] || "#9ca3af";
+    const fuelLabel  = r.fuel_unit || "L";
+
+    let savingsHTML = "";
+    if (r.type !== "greenest" && greenest) {
+      const saved = (r.co2_kg - greenest.co2_kg).toFixed(0);
+      if (saved > 0) savingsHTML = `<span class="savings-tag">🌱 Save ${saved} kg CO₂ vs this</span>`;
+    }
+
+    return `
+    <div class="route-card ${colorClass} ${i === 0 ? 'selected' : ''}" id="card-${i}" onclick="selectRoute(${i})">
+      <div class="card-header">
+        <div class="card-dot" style="background:${dot_color}"></div>
+        <span class="card-label" style="color:${dot_color}">${r.label}</span>
+        <span class="card-reason">${r.reason}</span>
+      </div>
+      <div class="card-stats">
+        <div class="stat"><div class="stat-val">${r.distance_km} km</div><div class="stat-key">Distance</div></div>
+        <div class="stat"><div class="stat-val">${r.eta}</div><div class="stat-key">ETA (${r.traffic})</div></div>
+        <div class="stat"><div class="stat-val">${r.fuel} ${fuelLabel}</div><div class="stat-key">Fuel</div></div>
+        <div class="stat"><div class="stat-val">${r.co2_kg} kg</div><div class="stat-key">CO₂ Emitted</div></div>
+      </div>
+
+      <div class="detail-panel">
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-val">₹${r.cost_inr.toLocaleString('en-IN')}</div><div class="detail-key">Trip Cost</div></div>
+          <div class="detail-item"><div class="detail-val">${r.load_factor}×</div><div class="detail-key">Load Factor</div></div>
+          <div class="detail-item"><div class="detail-val">${capitalize(r.traffic)}</div><div class="detail-key">Traffic</div></div>
+        </div>
+        <div class="why-box">💡 <strong>Why this route?</strong> ${getWhyText(r)}</div>
+        ${savingsHTML}
+        <button class="btn-start-sim" onclick="startJourneySimulation(event, ${i})">▶ Start Journey Simulation</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function getWhyText(r) {
+  const texts = {
+    greenest: `Produces lowest CO₂ (${r.co2_kg} kg). Ideal for corporate ESG sustainability targets.`,
+    fastest:  `Shortest travel time (${r.eta}) with ${capitalize(r.traffic)} traffic. Priority delivery choice.`,
+    optimal:  `Best balance between travel time, fuel expenditure, and carbon emissions.`,
+  };
+  return texts[r.type] || "Optimized route trajectory.";
+}
+
+function selectRoute(idx) {
+  selectedRouteIdx = idx;
+  document.querySelectorAll(".route-card").forEach(c => c.classList.remove("selected"));
+  const card = document.getElementById("card-" + idx);
+  if (card) card.classList.add("selected");
+  renderRoutes(currentRoutes, idx);
+  populateSummaryDashboard(currentRoutes[idx]);
+}
+
+function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+// ════════════════════════════════════════════════════════════
+// SIMULATION & POST-TRIP DASHBOARD
+// ════════════════════════════════════════════════════════════
+function startJourneySimulation(e, idx) {
+  e.stopPropagation();
+  selectRoute(idx);
+  const route = currentRoutes[idx];
+  if (!route || !route.geometry || !route.geometry.coordinates) return;
+
+  const coords = route.geometry.coordinates;
+  const hud = document.getElementById("simHud");
+  hud.classList.add("active");
+
+  if (simTruckMarker) simTruckMarker.remove();
+
+  const truckEl = document.createElement("div");
+  truckEl.style.cssText = "font-size:28px; filter:drop-shadow(0 2px 6px rgba(0,0,0,0.4));";
+  truckEl.textContent = "🚛";
+  simTruckMarker = new maplibregl.Marker({ element: truckEl }).setLngLat(coords[0]).addTo(map);
+
+  let step = 0;
+  const totalSteps = coords.length;
+  if (simInterval) clearInterval(simInterval);
+
+  simInterval = setInterval(() => {
+    step++;
+    const progress = Math.min(step / totalSteps, 1.0);
+    const currCoord = coords[Math.min(step, totalSteps - 1)];
+
+    simTruckMarker.setLngLat(currCoord);
+    map.panTo(currCoord, { duration: 100 });
+
+    const coveredDist = (route.distance_km * progress).toFixed(1);
+    const remDist = (route.distance_km * (1 - progress)).toFixed(1);
+    const fuelBurned = (route.fuel * progress).toFixed(1);
+
+    document.getElementById("simProgressFill").style.width = (progress * 100) + "%";
+    document.getElementById("simDistanceVal").textContent = `${coveredDist} km`;
+    document.getElementById("simRemVal").textContent = `${remDist} km`;
+    document.getElementById("simFuelVal").textContent = `${fuelBurned} ${route.fuel_unit}`;
+
+    if (progress >= 1.0) {
+      clearInterval(simInterval);
+      setTimeout(() => {
+        hud.classList.remove("active");
+        alert("🎉 Destination Reached! Opening Post-Trip Analytics Dashboard…");
+        switchView("summary");
+      }, 500);
+    }
+  }, 120);
+}
+
+function populateSummaryDashboard(route, fullData) {
+  if (!route) return;
+  const greenest = currentRoutes.find(r => r.type === "greenest") || route;
+  const fastest  = currentRoutes.find(r => r.type === "fastest")  || route;
+
+  const fuelSaved = (fastest.fuel - route.fuel).toFixed(1);
+  const co2Saved  = (fastest.co2_kg - route.co2_kg).toFixed(1);
+  const costSaved = (fastest.cost_inr - route.cost_inr);
+
+  document.getElementById("sumFuelVal").textContent = `${route.fuel} ${route.fuel_unit}`;
+  document.getElementById("sumFuelSaved").textContent = fuelSaved > 0 ? `🌱 ${fuelSaved} ${route.fuel_unit} Saved vs Fastest` : `⚡ Baseline Consumption`;
+  document.getElementById("sumCo2Val").textContent = `${route.co2_kg} kg`;
+  document.getElementById("sumCo2Saved").textContent = co2Saved > 0 ? `🌱 ${co2Saved} kg CO₂ Avoided` : `⚡ Baseline Emissions`;
+  document.getElementById("sumDistVal").textContent = `${route.distance_km} km`;
+  document.getElementById("sumCostVal").textContent = `₹${route.cost_inr.toLocaleString('en-IN')}`;
+  document.getElementById("sumCostSaved").textContent = costSaved > 0 ? `⚡ ₹${costSaved.toLocaleString('en-IN')} Saved in Fuel` : `Baseline Cost`;
+
+  // Bars
+  document.getElementById("bar1Val").textContent = `${greenest.co2_kg} kg CO₂ · ₹${greenest.cost_inr.toLocaleString('en-IN')}`;
+  document.getElementById("bar3Val").textContent = `${fastest.co2_kg} kg CO₂ · ₹${fastest.cost_inr.toLocaleString('en-IN')}`;
+
+  document.getElementById("certVehicle").textContent = document.getElementById("vehicle_type").value;
+  document.getElementById("certStandard").textContent = document.getElementById("euro_class").value + " " + document.getElementById("fuel_type").value.toUpperCase();
+  document.getElementById("certLoad").textContent = `${route.load_factor}x (${document.getElementById("payload").value} kg Payload)`;
+}
+
+// ════════════════════════════════════════════════════════════
+// LOADING HELPERS
+// ════════════════════════════════════════════════════════════
+let _progressInterval = null;
+
+function setLoading(active, msg = "") {
+  const btn = document.getElementById("optimizeBtn");
+  const overlay = document.getElementById("mapOverlay");
+  btn.disabled = active;
+
+  if (active) {
+    btn.innerHTML = `<div class="spinner"></div><span>Calculating…</span>`;
+    overlay.classList.add("active");
+    if (msg) document.getElementById("overlayText").textContent = msg;
+
+    const messages = ["📍 Finding locations…", "🗺️ Fetching road network…", "🚛 Calculating truck routes…", "🌱 Ranking by emissions…", "⚡ Comparing options…"];
+    let idx = 0;
+    _progressInterval = setInterval(() => {
+      idx = (idx + 1) % messages.length;
+      document.getElementById("overlayText").textContent = messages[idx];
+    }, 1600);
+  } else {
+    btn.innerHTML = `<span>🚀</span><span>Optimize Route</span>`;
+    overlay.classList.remove("active");
+    if (_progressInterval) { clearInterval(_progressInterval); _progressInterval = null; }
+  }
+}
+
+function setStatus(msg) { document.getElementById("statusBar").textContent = msg; }
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.target.id === "origin" || e.target.id === "destination")) optimizeRoute();
+});
+</script>
+</body>
+</html>
