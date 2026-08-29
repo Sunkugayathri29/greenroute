@@ -881,13 +881,12 @@ async function optimizeRoute() {
 
     const data = await resp.json();
     currentRoutes = data.routes;
-    selectedRouteIdx = 0;
 
     renderRoutes(data.routes, 0);
     placeMarkers(data.origin, data.destination);
     fitMapToRoutes(data.routes);
     renderRouteCards(data.routes, data);
-    populateSummaryDashboard(data.routes[0], data);
+    selectRoute(0);
 
     document.getElementById("mapLegend").style.display = "block";
     setStatus(`${data.origin.display} → ${data.destination.display} · ${data.routes.length} routes calculated`);
@@ -1052,11 +1051,33 @@ function getWhyText(r) {
 
 function selectRoute(idx) {
   selectedRouteIdx = idx;
-  document.querySelectorAll(".route-card").forEach(c => c.classList.remove("selected"));
+
+  document.querySelectorAll(".route-card").forEach(card => {
+    card.classList.remove("selected");
+    const badge = card.querySelector(".selected-badge");
+    if (badge) badge.remove();
+  });
+
   const card = document.getElementById("card-" + idx);
-  if (card) card.classList.add("selected");
+  if (card) {
+    card.classList.add("selected");
+    const r = currentRoutes[idx];
+    const badgeClass = r.type === "greenest" ? "" : r.type === "optimal" ? " blue-badge" : " gray-badge";
+    const badge = document.createElement("div");
+    badge.className = "selected-badge" + badgeClass;
+    badge.textContent = "SELECTED";
+    card.appendChild(badge);
+  }
+
   renderRoutes(currentRoutes, idx);
   populateSummaryDashboard(currentRoutes[idx]);
+
+  const r = currentRoutes[idx];
+  if (r && r.geometry && r.geometry.coordinates && r.geometry.coordinates.length > 0) {
+    const coords = r.geometry.coordinates;
+    const mid = coords[Math.floor(coords.length / 2)];
+    map.flyTo({ center: mid, zoom: Math.min(map.getZoom(), 7.5), duration: 700 });
+  }
 }
 
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
