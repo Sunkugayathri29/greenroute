@@ -48,27 +48,28 @@ GreenRoute AI is an enterprise-grade freight route optimization and ESG complian
 
 | 📍 1. Route Planner & Autocomplete | 🚀 2. Route Optimization Results |
 |:---:|:---:|
-| ![Route Planner](images/01_route_planner_initial_view.png) | ![Optimization Results](images/02_route_optimization_results.png) |
+| ![Route Planner](images/01_route_planner_dashboard.png) | ![Optimization Results](images/02_route_optimization_results.png) |
 
 | 🌱 3. Greenest Route Details | ⭐ 4. Optimal Route Details |
 |:---:|:---:|
-| ![Greenest Route](images/03_selected_greenest_route_details.png) | ![Optimal Route](images/04_selected_optimal_route_details.png) |
+| ![Greenest Route](images/03_greenest_route_analytics.png) | ![Optimal Route](images/04_optimal_route_analytics.png) |
 
 | 🛰️ 5. Satellite Map View | 🚚 6. Live Journey Simulation HUD |
 |:---:|:---:|
-| ![Satellite Mode](images/05_satellite_map_mode.png) | ![Live Simulation HUD](images/06_live_journey_simulation_hud.png) |
+| ![Satellite Mode](images/05_satellite_view_corridor.png) | ![Live Simulation HUD](images/06_live_journey_simulation_telemetry.png) |
 
 | 📊 7. Fleet Dashboard Overview | 📜 8. ESG Comparative Analytics Chart |
 |:---:|:---:|
-| ![Fleet Dashboard](images/07_fleet_dashboard_overview.png) | ![ESG Analytics Chart](images/08_esg_comparative_analytics_chart.png) |
+| ![Fleet Dashboard](images/07_fleet_analytics_dashboard.png) | ![ESG Analytics Chart](images/08_esg_comparative_chart.png) |
 
 | 🚛 9. Fleet Live Monitoring Table | ⚙️ 10. Admin Configuration Portal |
 |:---:|:---:|
-| ![Monitoring Table](images/09_fleet_live_monitoring_table.png) | ![Admin Config Portal](images/10_admin_config_portal_modal.png) |
+| ![Monitoring Table](images/09_fleet_live_monitoring_table.png) | ![Admin Config Portal](images/10_fleet_admin_portal.png) |
 
 | 🌙 11. Midnight Dark Theme | ⚡ 12. Cyber Fleet Theme |
 |:---:|:---:|
 | ![Midnight Theme](images/11_midnight_dark_theme.png) | ![Cyber Fleet Theme](images/12_cyber_fleet_theme.png) |
+
 
 ---
 
