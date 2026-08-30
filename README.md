@@ -1,4 +1,4 @@
-# 🌿 GreenRoute AI — Intelligent Freight Route Optimization Engine
+# 🌿 GreenRoute — Intelligent Freight Route Optimization Engine
 
 > **Live Production Deployment:** [https://greenroute-7p3n.onrender.com/](https://greenroute-7p3n.onrender.com/)
 
@@ -8,7 +8,8 @@
 [![Render](https://img.shields.io/badge/Render-Deployed-46E3B7?logo=render&logoColor=white)](https://greenroute-7p3n.onrender.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-GreenRoute AI is an enterprise-grade freight route optimization and ESG compliance platform. It models vehicle payloads, gross vehicle weight (GVW), multi-fuel consumption, carbon emission factors (CO₂), and live corridor traffic conditions to compute greenest vs. optimal transit paths.
+GreenRoute is an enterprise-grade freight route optimization and ESG compliance platform. It models vehicle payloads, gross vehicle weight (GVW), multi-fuel consumption, carbon emission factors (CO₂), and live corridor traffic conditions to compute greenest vs. optimal transit paths.
+
 
 ---
 

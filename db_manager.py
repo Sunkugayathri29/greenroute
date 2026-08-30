@@ -1,7 +1,8 @@
 """
-Database Manager for GreenRoute AI
+Database Manager for GreenRoute
 Handles dynamic Supabase PostgreSQL connection via REST API with automatic local JSON cache fallback.
 """
+
 
 import os
 import json

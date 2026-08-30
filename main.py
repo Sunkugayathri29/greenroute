@@ -1,5 +1,5 @@
 """
-GreenRoute AI Fleet Optimization Backend
+GreenRoute Fleet Optimization Backend
 FastAPI server — handles geocoding, routing, fuel/CO2 calculation
 """
 
@@ -14,7 +14,8 @@ import asyncio
 import math
 import os
 
-app = FastAPI(title="GreenRoute AI", version="1.0.0")
+app = FastAPI(title="GreenRoute", version="1.0.0")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -350,7 +351,8 @@ async def geocode_nominatim(place: str, limit: int = 5) -> List[dict]:
     """Search OpenStreetMap Nominatim for matching places."""
     url = "https://nominatim.openstreetmap.org/search"
     params = {"q": place, "format": "json", "limit": limit, "addressdetails": 1}
-    headers = {"User-Agent": "GreenRoute-AI/2.0 (fleet-logistics)"}
+    headers = {"User-Agent": "GreenRoute/2.0 (fleet-logistics)"}
+
     results = []
     try:
         async with httpx.AsyncClient(timeout=3.5) as client:
@@ -568,7 +570,8 @@ async def optimize_route_coords(req: CoordRouteRequest):
 @app.get("/api/health")
 async def health():
     db_status = await db_manager.get_status()
-    return {"status": "ok", "service": "GreenRoute AI", "db": db_status}
+    return {"status": "ok", "service": "GreenRoute", "db": db_status}
+
 
 
 # ─────────────────────────────────────────────────────────────

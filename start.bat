@@ -1,8 +1,9 @@
 @echo off
 chcp 65001 >nul
 echo ===================================
-echo  GreenRoute AI - Starting Server
+echo  GreenRoute - Starting Server
 echo ===================================
+
 echo.
 
 REM Activate virtual environment if available
